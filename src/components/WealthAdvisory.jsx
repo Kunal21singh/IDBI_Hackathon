@@ -301,9 +301,38 @@ const WealthAdvisory = ({
             
             {/* Slider 1: Monthly SIP */}
             <div className="simulator-slider-group">
-              <div className="slider-label-row">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Monthly Investment</span>
-                <span className="val">₹{sipAmount.toLocaleString('en-IN')}</span>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px', 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '8px', 
+                  padding: '2px 8px' 
+                }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>₹</span>
+                  <input 
+                    type="number" 
+                    value={sipAmount}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setSipAmount(Math.min(5000000, val));
+                    }}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      color: 'white', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 700, 
+                      width: '64px', 
+                      padding: 0,
+                      outline: 'none',
+                      textAlign: 'right'
+                    }}
+                  />
+                </div>
               </div>
               <input 
                 type="range" 
@@ -311,16 +340,46 @@ const WealthAdvisory = ({
                 max="100000" 
                 step="1000" 
                 className="custom-range-slider"
-                value={sipAmount}
+                value={Math.min(100000, Math.max(2000, sipAmount))}
                 onChange={(e) => setSipAmount(parseInt(e.target.value))}
               />
             </div>
 
             {/* Slider 2: Rate of return */}
             <div className="simulator-slider-group">
-              <div className="slider-label-row">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Expected Returns (p.a.)</span>
-                <span className="val">{returnRate}%</span>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px', 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '8px', 
+                  padding: '2px 8px' 
+                }}>
+                  <input 
+                    type="number" 
+                    value={returnRate}
+                    step="0.1"
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setReturnRate(Math.min(100, Math.max(0, val)));
+                    }}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      color: 'white', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 700, 
+                      width: '40px', 
+                      padding: 0,
+                      outline: 'none',
+                      textAlign: 'right'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>%</span>
+                </div>
               </div>
               <input 
                 type="range" 
@@ -328,16 +387,45 @@ const WealthAdvisory = ({
                 max="25" 
                 step="0.5" 
                 className="custom-range-slider"
-                value={returnRate}
+                value={Math.min(25, Math.max(5, returnRate))}
                 onChange={(e) => setReturnRate(parseFloat(e.target.value))}
               />
             </div>
 
             {/* Slider 3: Duration */}
             <div className="simulator-slider-group">
-              <div className="slider-label-row">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Tenure Period</span>
-                <span className="val">{tenureYears} Years</span>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px', 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: '8px', 
+                  padding: '2px 8px' 
+                }}>
+                  <input 
+                    type="number" 
+                    value={tenureYears}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setTenureYears(Math.min(50, Math.max(0, val)));
+                    }}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      color: 'white', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 700, 
+                      width: '40px', 
+                      padding: 0,
+                      outline: 'none',
+                      textAlign: 'right'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Yrs</span>
+                </div>
               </div>
               <input 
                 type="range" 
@@ -345,7 +433,7 @@ const WealthAdvisory = ({
                 max="30" 
                 step="1" 
                 className="custom-range-slider"
-                value={tenureYears}
+                value={Math.min(30, Math.max(1, tenureYears))}
                 onChange={(e) => setTenureYears(parseInt(e.target.value))}
               />
             </div>

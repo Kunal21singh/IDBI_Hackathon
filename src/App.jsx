@@ -278,16 +278,19 @@ function App() {
   const handleUpdatePersonaGoal = (goalId, newSip, newDuration) => {
     setPersonaData(prev => {
       const updated = { ...prev };
-      const persona = updated[currentPersonaId];
+      const persona = { ...updated[currentPersonaId] };
+      persona.goals = [...persona.goals];
+      
       const goalIndex = persona.goals.findIndex(g => g.id === goalId);
       if (goalIndex !== -1) {
-        const goal = persona.goals[goalIndex];
+        const goal = { ...persona.goals[goalIndex] };
         goal.sip = newSip;
         goal.duration = newDuration;
-        
-        const totalInvestedProjected = goal.current + (newSip * newDuration * 0.7);
-        goal.progress = Math.min(100, Math.round((totalInvestedProjected / goal.target) * 100));
+        goal.progress = Math.min(100, Math.round((goal.current / goal.target) * 100));
+        persona.goals[goalIndex] = goal;
       }
+
+      updated[currentPersonaId] = persona;
 
       if (authType === "actual" && userUid) {
         saveActualUserProfile(userUid, updated.actual);
@@ -300,12 +303,13 @@ function App() {
   const handleCreatePersonaGoal = (newGoal) => {
     setPersonaData(prev => {
       const updated = { ...prev };
-      const persona = updated[currentPersonaId];
+      const persona = { ...updated[currentPersonaId] };
+      persona.goals = [...persona.goals];
       
-      const totalInvestedProjected = newGoal.current + (newGoal.sip * newGoal.duration * 0.7);
-      newGoal.progress = Math.min(100, Math.round((totalInvestedProjected / newGoal.target) * 100));
-      
+      newGoal.progress = Math.min(100, Math.round((newGoal.current / newGoal.target) * 100));
       persona.goals.push(newGoal);
+      
+      updated[currentPersonaId] = persona;
 
       if (authType === "actual" && userUid) {
         saveActualUserProfile(userUid, updated.actual);
@@ -318,13 +322,16 @@ function App() {
   const handleModifyPersonaGoal = (updatedGoal) => {
     setPersonaData(prev => {
       const updated = { ...prev };
-      const persona = updated[currentPersonaId];
+      const persona = { ...updated[currentPersonaId] };
+      persona.goals = [...persona.goals];
+      
       const idx = persona.goals.findIndex(g => g.id === updatedGoal.id);
       if (idx !== -1) {
-        const totalInvestedProjected = updatedGoal.current + (updatedGoal.sip * updatedGoal.duration * 0.7);
-        updatedGoal.progress = Math.min(100, Math.round((totalInvestedProjected / updatedGoal.target) * 100));
+        updatedGoal.progress = Math.min(100, Math.round((updatedGoal.current / updatedGoal.target) * 100));
         persona.goals[idx] = updatedGoal;
       }
+
+      updated[currentPersonaId] = persona;
 
       if (authType === "actual" && userUid) {
         saveActualUserProfile(userUid, updated.actual);
