@@ -127,51 +127,62 @@ const AvatarView = ({
 
           <circle cx="50" cy="50" r="46" fill="none" stroke="url(#aiGlow)" strokeWidth="1" strokeDasharray="3 3" opacity="0.3" />
 
-          <path d="M 22,50 Q 50,15 78,50 Q 82,65 78,80 L 22,80 Q 18,65 22,50 Z" fill="#0f172a" />
+          {/* Floating animated group containing the friendly robot assistant */}
+          <g className="avatar-gently-float" style={{ transformOrigin: '50px 50px' }}>
+            {/* Robot Headphone arch */}
+            <path d="M 22,38 A 28,28 0 0,1 78,38" fill="none" stroke="#1e293b" strokeWidth="3" />
 
-          <rect x="44" y="65" width="12" height="15" fill="#1e293b" rx="4" />
-          <path d="M 44,70 Q 50,75 56,70 L 56,80 L 44,80 Z" fill="#0f172a" opacity="0.4" />
+            {/* Left earphone capsule */}
+            <rect x="18" y="32" width="7" height="20" rx="3.5" fill="#1e293b" />
+            <circle cx="21.5" cy="42" r="1.5" fill="var(--color-primary)" />
 
-          <circle cx="50" cy="48" r="24" fill="url(#avatarSkin)" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            {/* Right earphone capsule */}
+            <rect x="75" y="32" width="7" height="20" rx="3.5" fill="#1e293b" />
+            <circle cx="78.5" cy="42" r="1.5" fill="var(--color-primary)" />
 
-          {avatarState === 'happy' && (
-            <>
-              <circle cx="36" cy="54" r="3" fill="var(--color-danger)" opacity="0.25" />
-              <circle cx="64" cy="54" r="3" fill="var(--color-danger)" opacity="0.25" />
-            </>
-          )}
+            {/* Neck connection */}
+            <rect x="46" y="58" width="8" height="12" fill="#0f172a" rx="1" />
 
-          <path d="M 24,42 Q 50,18 76,42 Q 74,32 64,28 Q 50,22 36,28 Q 26,32 24,42 Z" fill="url(#hairGrad)" />
-          
-          <path d="M 32,38 Q 38,35 42,39" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" />
-          <path d="M 68,38 Q 62,35 58,39" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" />
+            {/* Robot shoulders / base chest */}
+            <path d="M 24,70 Q 50,66 76,70 L 71,80 L 29,80 Z" fill="#1e293b" />
 
-          <g className="avatar-eyes">
-            <circle cx="37" cy="44" r="3" fill="var(--color-ai)" />
-            <circle cx="37" cy="44" r="1" fill="#fff" transform="translate(-1, -1)" />
-            <circle cx="63" cy="44" r="3" fill="var(--color-ai)" />
-            <circle cx="63" cy="44" r="1" fill="#fff" transform="translate(-1, -1)" />
+            {/* Bot head outer frame */}
+            <rect x="25" y="22" width="50" height="42" rx="14" fill="url(#avatarSkin)" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
+
+            {/* Inner glossy screen */}
+            <rect x="28" y="25" width="44" height="36" rx="10" fill="#0b0e14" />
+
+            {/* Rosy blush cheeks always on screen for friendliness */}
+            <circle cx="35" cy="48" r="3" fill="#ff5e7e" opacity="0.35" />
+            <circle cx="65" cy="48" r="3" fill="#ff5e7e" opacity="0.35" />
+
+            {/* Friendly curved eyebrows */}
+            <path d="M 33,33 Q 38,30 42,34" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+            <path d="M 67,33 Q 62,30 58,34" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+
+            {/* Smiling mouth */}
+            <path 
+              className="avatar-mouth"
+              d="M 43,49 Q 50,54 57,49" 
+              fill="none" 
+              stroke="var(--color-primary)" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              style={{ 
+                transformOrigin: '50px 49px',
+                transition: 'transform 0.1s ease',
+                d: avatarState === "speaking" ? "M 44,49 Q 50,56 56,49" : avatarState === "happy" ? "M 42,48 Q 50,56 58,48" : "M 43,49 Q 50,54 57,49"
+              }} 
+            />
+
+            {/* Blinking eyes group */}
+            <g className="avatar-eyes">
+              <circle cx="38" cy="39" r="4.5" fill="var(--color-primary)" />
+              <circle cx="38" cy="39" r="1.3" fill="#fff" transform="translate(-1, -1)" />
+              <circle cx="62" cy="39" r="4.5" fill="var(--color-primary)" />
+              <circle cx="62" cy="39" r="1.3" fill="#fff" transform="translate(-1, -1)" />
+            </g>
           </g>
-
-          <path d="M 50,45 L 48,51 Q 50,53 52,51 Z" fill="#0f172a" opacity="0.6" />
-
-          <path 
-            className="avatar-mouth"
-            d="M 42,57 Q 50,57 58,57" 
-            fill="none" 
-            stroke="var(--color-ai)" 
-            strokeWidth="3" 
-            strokeLinecap="round" 
-            style={{ 
-              transformOrigin: '50px 57px',
-              transition: 'transform 0.1s ease',
-              d: avatarState === "speaking" ? "M 44,57 Q 50,64 56,57" : avatarState === "happy" ? "M 43,55 Q 50,62 57,55" : "M 44,57 Q 50,57 56,57"
-            }} 
-          />
-
-          <circle cx="37" cy="44" r="7" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-          <circle cx="63" cy="44" r="7" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-          <line x1="44" y1="44" x2="56" y2="44" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
         </svg>
       </div>
 

@@ -27,15 +27,19 @@ export const generateAIResponse = (message, persona, currentContext = {}) => {
     } else if (persona.id === "priya") {
       responseText = `Priya, you're currently allocating well under Section 80C. However, did you know you can get an additional tax deduction of up to ₹50,000 under Section 80CCD(1B) by investing in the National Pension Scheme (NPS)? Let's open an IDBI NPS account!`;
       state = "happy";
-    } else { // Vikram
+    } else if (persona.id === "vikram") {
       responseText = `Vikram, as a business owner, you can optimize your tax bracket significantly. In addition to investing in the NPS Tier 1 (Sec 80CCD(1B)), we should explore dividend distribution strategies and splitting your savings into Tax-Free Corporate Bonds. Let me know if you want a detailed asset breakdown.`;
       state = "thinking";
+    } else {
+      const userName = persona.name.split(" ")[0];
+      responseText = `${userName}, based on your current income of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')}, I highly recommend maximizing your Sec 80C deductions by investing in ELSS tax saving Mutual Funds (historically yielding 14.5%) or checking out the National Pension System (NPS) for an additional ₹50,000 exemption. Shall I show you tax savers?`;
+      state = "happy";
     }
   }
 
   // 4. Spending and budget habits
   else if (query.includes("spend") || query.includes("budget") || query.includes("expense") || query.includes("buying") || query.includes("dining")) {
-    const diningCategory = persona.spendingCategories.find(c => c.name.includes("Food") || c.name.includes("Dining"));
+    const diningCategory = persona.spendingCategories ? persona.spendingCategories.find(c => c.name.includes("Food") || c.name.includes("Dining")) : null;
     const diningAmt = diningCategory ? diningCategory.value : 0;
     
     if (persona.id === "rohan") {
@@ -46,8 +50,14 @@ export const generateAIResponse = (message, persona, currentContext = {}) => {
       responseText = `Priya, your household budgeting is very disciplined! Your primary spending is on Rent/Utilities and Child Education. However, you have an inflation leak: ₹4.5 Lakhs in your Savings account is losing value. Let's move ₹3 Lakhs to a liquid fund yielding 7.2%.`;
       state = "happy";
       actionTrigger = { type: "OPEN_TAB", payload: "spending" };
-    } else { // Vikram
+    } else if (persona.id === "vikram") {
       responseText = `Vikram, your business expenses constitute your largest outflow. Your EMI payments (₹50,000/month) represent 24% of your total expenses. Prepaying your high-interest business loan would immediately yield an effective risk-free return equal to the loan's interest rate.`;
+      state = "warning";
+      actionTrigger = { type: "OPEN_TAB", payload: "spending" };
+    } else {
+      const userName = persona.name.split(" ")[0];
+      const savingsRate = Math.round((persona.metrics.monthlySavings / persona.metrics.monthlyIncome) * 100) || 0;
+      responseText = `${userName}, you currently save ₹${persona.metrics.monthlySavings.toLocaleString('en-IN')} out of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')} income (a savings rate of ${savingsRate}%). I recommend budgeting 30%+ of your income to speed up goal completion. Let's look at your monthly spend graph.`;
       state = "warning";
       actionTrigger = { type: "OPEN_TAB", payload: "spending" };
     }
@@ -63,8 +73,13 @@ export const generateAIResponse = (message, persona, currentContext = {}) => {
       responseText = `Priya, we can create an automated monthly SIP portfolio containing 60% Bluechip Equity and 40% Dynamic Debt. This matches your Moderate risk profile perfectly. Since you save ₹90,000/month, we can easily allocate ₹40,000 towards your Child's Higher Education goal.`;
       state = "happy";
       actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
-    } else { // Vikram
+    } else if (persona.id === "vikram") {
       responseText = `Vikram, because your business income varies, a conservative investment plan fits best. Let's maximize your PPF limits and ladder your fixed deposits. Linking your Current Account to an IDBI Auto-Sweep FD will let your surplus business cash earn 7.1% interest.`;
+      state = "happy";
+      actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
+    } else {
+      const userName = persona.name.split(" ")[0];
+      responseText = `${userName}, for your ${persona.riskProfile} risk profile, a balanced mutual fund SIP containing 60% equities and 40% debt/gold instruments is recommended. Let's navigate to the Advisory tab to configure your Auto-SIP drafts or run compound simulator calculators.`;
       state = "happy";
       actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
     }
@@ -116,7 +131,8 @@ export const generateAIResponse = (message, persona, currentContext = {}) => {
 
   // Default fallback conversational responses
   else {
-    responseText = `I understand you're asking about "${message}". Let me analyze your financial profile. Based on your current net worth of ₹${persona.metrics.netWorth.toLocaleString('en-IN')} and a monthly income of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')}, we can set up an optimized allocation. Would you like me to show your spending insights or recommend investment options?`;
+    const userName = persona.name.split(" ")[0];
+    responseText = `${userName}, I understand you're asking about "${message}". Let me analyze your financial profile. Based on your current net worth of ₹${persona.metrics.netWorth.toLocaleString('en-IN')} and a monthly income of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')}, we can set up an optimized allocation. Would you like me to show your spending insights or recommend investment options?`;
     state = "thinking";
   }
 

@@ -254,7 +254,7 @@ function App() {
   };
 
   // Chat Submission Handler
-  const handleSendMessage = (messageText) => {
+  const handleSendMessage = (messageText, skipTabSwitch = false) => {
     addChatMessage(messageText, 'user');
     setAvatarState("thinking");
 
@@ -262,7 +262,7 @@ function App() {
       const aiResult = generateAIResponse(messageText, activePersona);
       addChatMessage(aiResult.text, 'ai', aiResult.state);
 
-      if (aiResult.actionTrigger && aiResult.actionTrigger.type === "OPEN_TAB") {
+      if (aiResult.actionTrigger && aiResult.actionTrigger.type === "OPEN_TAB" && !skipTabSwitch) {
         setActiveTab(aiResult.actionTrigger.payload);
       }
     }, 1000);

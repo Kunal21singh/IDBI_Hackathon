@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Sliders, RefreshCw, HelpCircle, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Target, Sliders, RefreshCw, HelpCircle, CheckCircle2, ChevronRight, Calculator, Landmark } from 'lucide-react';
 import { calculateSIPProjections } from '../utils/aiEngine';
 import confetti from 'canvas-confetti';
 
@@ -27,6 +27,25 @@ const WealthAdvisory = ({
   const [returnRate, setReturnRate] = useState(12); 
   const [tenureYears, setTenureYears] = useState(selectedGoal ? Math.round(selectedGoal.duration / 12) : 5);
 
+  // Calculator Suite States
+  const [calculatorTab, setCalculatorTab] = useState("emi"); // "emi", "fd", "retirement"
+  
+  // 1. EMI Calculator States
+  const [loanAmount, setLoanAmount] = useState(1000000);
+  const [loanRate, setLoanRate] = useState(8.5);
+  const [loanTenure, setLoanTenure] = useState(15); // years
+
+  // 2. FD Calculator States
+  const [fdPrincipal, setFdPrincipal] = useState(500000);
+  const [fdRate, setFdRate] = useState(7.1);
+  const [fdTenure, setFdTenure] = useState(5); // years
+
+  // 3. Retirement Calculator States
+  const [currentAge, setCurrentAge] = useState(30);
+  const [retireAge, setRetireAge] = useState(60);
+  const [monthlyExp, setMonthlyExp] = useState(50000);
+  const [inflationRate, setInflationRate] = useState(6);
+
   // Risk Quiz States
   const [quizActive, setQuizActive] = useState(false);
   const [quizStep, setQuizStep] = useState(0);
@@ -41,6 +60,50 @@ const WealthAdvisory = ({
   }, [selectedGoal]);
 
   const projections = calculateSIPProjections(sipAmount, returnRate, tenureYears);
+
+  // Calculators Logic
+  const calculateEMI = () => {
+    const P = loanAmount;
+    const r = (loanRate / 100) / 12;
+    const n = loanTenure * 12;
+    if (r === 0) return { emi: Math.round(P / n), totalInterest: 0, totalPayable: P };
+    const emiVal = P * r * (Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1));
+    const totalPayable = emiVal * n;
+    const totalInterest = totalPayable - P;
+    return {
+      emi: Math.round(emiVal),
+      totalInterest: Math.round(totalInterest),
+      totalPayable: Math.round(totalPayable)
+    };
+  };
+
+  const calculateFD = () => {
+    const P = fdPrincipal;
+    const r = fdRate / 100;
+    const t = fdTenure;
+    const maturity = P * Math.pow(1 + r/4, 4*t);
+    const interest = maturity - P;
+    return {
+      interestEarned: Math.round(interest),
+      maturityAmount: Math.round(maturity)
+    };
+  };
+
+  const calculateRetirement = () => {
+    const yearsToRetire = Math.max(0, retireAge - currentAge);
+    const infl = inflationRate / 100;
+    const inflatedExp = monthlyExp * Math.pow(1 + infl, yearsToRetire);
+    const corpus = inflatedExp * 12 * 22;
+    return {
+      inflatedExpense: Math.round(inflatedExp),
+      targetCorpus: Math.round(corpus),
+      yearsLeft: yearsToRetire
+    };
+  };
+
+  const emiDetails = calculateEMI();
+  const fdDetails = calculateFD();
+  const retirementDetails = calculateRetirement();
 
   // Triggered when clicking "Invest Now"
   const handleInvestSimulation = () => {
@@ -64,7 +127,6 @@ const WealthAdvisory = ({
     }, 1000);
   };
 
-  // Open Form Handler
   const handleOpenForm = (mode, goal = null) => {
     setFormMode(mode);
     if (mode === "add") {
@@ -83,7 +145,6 @@ const WealthAdvisory = ({
     setGoalFormOpen(true);
   };
 
-  // Form Submit Handler
   const handleFormSubmit = (e) => {
     e.preventDefault();
     if (!goalName) return;
@@ -464,6 +525,266 @@ const WealthAdvisory = ({
           </div>
         </div>
       )}
+
+      {/* Fintech Wealth Calculators Suite */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', padding: '4px', background: 'rgba(0, 229, 255, 0.1)', borderRadius: '6px' }}>
+            <Calculator size={18} color="var(--color-primary)" />
+          </div>
+          <h3 style={{ margin: 0 }}>IDBI Smart Calculators Suite</h3>
+        </div>
+
+        {/* Calculator Tab Switcher */}
+        <div className="auth-tabs" style={{ marginBottom: '1.25rem' }}>
+          <button 
+            type="button" 
+            className={`auth-tab-btn ${calculatorTab === 'emi' ? 'active' : ''}`}
+            onClick={() => setCalculatorTab("emi")}
+            style={{ fontSize: '0.75rem', padding: '6px' }}
+          >
+            <span>Loan EMI (Premium)</span>
+          </button>
+          <button 
+            type="button" 
+            className={`auth-tab-btn ${calculatorTab === 'fd' ? 'active' : ''}`}
+            onClick={() => setCalculatorTab("fd")}
+            style={{ fontSize: '0.75rem', padding: '6px' }}
+          >
+            <span>Fixed Deposit (FD)</span>
+          </button>
+          <button 
+            type="button" 
+            className={`auth-tab-btn ${calculatorTab === 'retirement' ? 'active' : ''}`}
+            onClick={() => setCalculatorTab("retirement")}
+            style={{ fontSize: '0.75rem', padding: '6px' }}
+          >
+            <span>Retirement (FIRE)</span>
+          </button>
+        </div>
+
+        {/* 1. Loan EMI Premium Calculator */}
+        {calculatorTab === 'emi' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Input 1: Loan Principal */}
+            <div className="simulator-slider-group">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Loan Principal Amount</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>₹</span>
+                  <input 
+                    type="number" 
+                    value={loanAmount}
+                    onChange={(e) => setLoanAmount(parseInt(e.target.value) || 0)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.75rem', fontWeight: 700, width: '70px', padding: 0, outline: 'none', textAlign: 'right' }}
+                  />
+                </div>
+              </div>
+              <input 
+                type="range" min="50000" max="5000000" step="25000" className="custom-range-slider"
+                value={Math.min(5000000, Math.max(50000, loanAmount))}
+                onChange={(e) => setLoanAmount(parseInt(e.target.value))}
+              />
+            </div>
+
+            {/* Input 2: Loan Rate */}
+            <div className="simulator-slider-group">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Interest Rate (p.a.)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                  <input 
+                    type="number" value={loanRate} step="0.1"
+                    onChange={(e) => setLoanRate(parseFloat(e.target.value) || 0)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.75rem', fontWeight: 700, width: '40px', padding: 0, outline: 'none', textAlign: 'right' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>%</span>
+                </div>
+              </div>
+              <input 
+                type="range" min="3" max="20" step="0.1" className="custom-range-slider"
+                value={Math.min(20, Math.max(3, loanRate))}
+                onChange={(e) => setLoanRate(parseFloat(e.target.value))}
+              />
+            </div>
+
+            {/* Input 3: Loan Tenure */}
+            <div className="simulator-slider-group">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Tenure Duration</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                  <input 
+                    type="number" value={loanTenure}
+                    onChange={(e) => setLoanTenure(parseInt(e.target.value) || 0)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.75rem', fontWeight: 700, width: '30px', padding: 0, outline: 'none', textAlign: 'right' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Yrs</span>
+                </div>
+              </div>
+              <input 
+                type="range" min="1" max="30" step="1" className="custom-range-slider"
+                value={Math.min(30, Math.max(1, loanTenure))}
+                onChange={(e) => setLoanTenure(parseInt(e.target.value))}
+              />
+            </div>
+
+            {/* EMI Result Cards */}
+            <div className="simulator-metrics-card" style={{ background: 'radial-gradient(circle at 10% 20%, rgba(255, 94, 126, 0.04) 0%, rgba(18, 25, 41, 0.7) 100%)', border: '1px solid rgba(255, 94, 126, 0.15)' }}>
+              <div className="sim-metric-item">
+                <span className="lbl">Monthly EMI Premium</span>
+                <span className="val" style={{ color: 'var(--color-danger)', fontSize: '1.1rem' }}>₹{emiDetails.emi.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sim-metric-item">
+                <span className="lbl">Total Principal</span>
+                <span className="val">₹{loanAmount.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sim-metric-item">
+                <span className="lbl">Total Interest Payable</span>
+                <span className="val" style={{ color: 'var(--color-gold)' }}>₹{emiDetails.totalInterest.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sim-metric-item total" style={{ borderTopColor: 'rgba(255, 255, 255, 0.05)' }}>
+                <span className="lbl">Total Amount Payable</span>
+                <span className="val" style={{ color: 'white' }}>₹{emiDetails.totalPayable.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Fixed Deposit Calculator */}
+        {calculatorTab === 'fd' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="simulator-slider-group">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>FD Principal Deposit</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>₹</span>
+                  <input 
+                    type="number" value={fdPrincipal}
+                    onChange={(e) => setFdPrincipal(parseInt(e.target.value) || 0)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.75rem', fontWeight: 700, width: '70px', padding: 0, outline: 'none', textAlign: 'right' }}
+                  />
+                </div>
+              </div>
+              <input 
+                type="range" min="10000" max="2500000" step="10000" className="custom-range-slider"
+                value={Math.min(2500000, Math.max(10000, fdPrincipal))}
+                onChange={(e) => setFdPrincipal(parseInt(e.target.value))}
+              />
+            </div>
+
+            <div className="simulator-slider-group">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Interest Rate (p.a.)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                  <input 
+                    type="number" value={fdRate} step="0.1"
+                    onChange={(e) => setFdRate(parseFloat(e.target.value) || 0)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.75rem', fontWeight: 700, width: '40px', padding: 0, outline: 'none', textAlign: 'right' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>%</span>
+                </div>
+              </div>
+              <input 
+                type="range" min="3" max="12" step="0.1" className="custom-range-slider"
+                value={Math.min(12, Math.max(3, fdRate))}
+                onChange={(e) => setFdRate(parseFloat(e.target.value))}
+              />
+            </div>
+
+            <div className="simulator-slider-group">
+              <div className="slider-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Tenure Duration</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                  <input 
+                    type="number" value={fdTenure}
+                    onChange={(e) => setFdTenure(parseInt(e.target.value) || 0)}
+                    style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.75rem', fontWeight: 700, width: '30px', padding: 0, outline: 'none', textAlign: 'right' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Yrs</span>
+                </div>
+              </div>
+              <input 
+                type="range" min="1" max="15" step="1" className="custom-range-slider"
+                value={Math.min(15, Math.max(1, fdTenure))}
+                onChange={(e) => setFdTenure(parseInt(e.target.value))}
+              />
+            </div>
+
+            {/* FD Result Cards */}
+            <div className="simulator-metrics-card" style={{ background: 'radial-gradient(circle at 10% 20%, rgba(0, 230, 118, 0.04) 0%, rgba(18, 25, 41, 0.7) 100%)', border: '1px solid rgba(0, 230, 118, 0.15)' }}>
+              <div className="sim-metric-item">
+                <span className="lbl">Invested Deposit</span>
+                <span className="val">₹{fdPrincipal.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sim-metric-item">
+                <span className="lbl">Interest Compounded</span>
+                <span className="val" style={{ color: 'var(--color-success)', fontSize: '1.05rem' }}>+ ₹{fdDetails.interestEarned.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sim-metric-item total" style={{ borderTopColor: 'rgba(255, 255, 255, 0.05)' }}>
+                <span className="lbl">Maturity Wealth Value</span>
+                <span className="val" style={{ color: 'var(--color-success)', fontSize: '1.15rem' }}>₹{fdDetails.maturityAmount.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Retirement Calculator */}
+        {calculatorTab === 'retirement' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="auth-input-group">
+                <label>Current Age (Yrs)</label>
+                <input 
+                  type="number" className="chat-input-text" style={{ borderRadius: '8px', padding: '8px 12px' }}
+                  value={currentAge} onChange={(e) => setCurrentAge(Math.max(18, parseInt(e.target.value) || 0))}
+                />
+              </div>
+              <div className="auth-input-group">
+                <label>Retirement Age (Yrs)</label>
+                <input 
+                  type="number" className="chat-input-text" style={{ borderRadius: '8px', padding: '8px 12px' }}
+                  value={retireAge} onChange={(e) => setRetireAge(Math.max(currentAge, parseInt(e.target.value) || 0))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="auth-input-group">
+                <label>Monthly Budget Needs (₹)</label>
+                <input 
+                  type="number" className="chat-input-text" style={{ borderRadius: '8px', padding: '8px 12px' }}
+                  value={monthlyExp} onChange={(e) => setMonthlyExp(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="auth-input-group">
+                <label>Inflation Rate (% p.a.)</label>
+                <input 
+                  type="number" className="chat-input-text" style={{ borderRadius: '8px', padding: '8px 12px' }}
+                  value={inflationRate} onChange={(e) => setInflationRate(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+
+            {/* Retirement Result Cards */}
+            <div className="simulator-metrics-card" style={{ background: 'radial-gradient(circle at 10% 20%, rgba(0, 229, 255, 0.03) 0%, rgba(18, 25, 41, 0.7) 100%)', border: '1px solid rgba(0, 229, 255, 0.15)' }}>
+              <div className="sim-metric-item">
+                <span className="lbl">Years Left to Retire</span>
+                <span className="val" style={{ color: 'white' }}>{retirementDetails.yearsLeft} Years</span>
+              </div>
+              <div className="sim-metric-item">
+                <span className="lbl">Future Inflated Monthly Exp</span>
+                <span className="val" style={{ color: 'var(--color-gold)' }}>₹{retirementDetails.inflatedExpense.toLocaleString('en-IN')}/m</span>
+              </div>
+              <div className="sim-metric-item total" style={{ borderTopColor: 'rgba(255, 255, 255, 0.05)' }}>
+                <span className="lbl">Target Wealth Corpus Pot</span>
+                <span className="val" style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}>₹{retirementDetails.targetCorpus.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
+              💡 Calculation assumes 22x annual expense index multiplier, securing regular income post-retirement with inflation protection adjustments.
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Goal Add / Modify Overlay Form Dialog */}
       {goalFormOpen && (

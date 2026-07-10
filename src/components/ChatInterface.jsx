@@ -13,7 +13,7 @@ const ChatInterface = ({ messages, onSendMessage, persona, isListening, onToggle
   const handleSend = (e) => {
     e.preventDefault();
     if (inputText.trim()) {
-      onSendMessage(inputText);
+      onSendMessage(inputText, true);
       setInputText("");
     }
   };
@@ -75,7 +75,7 @@ const ChatInterface = ({ messages, onSendMessage, persona, isListening, onToggle
           <button 
             key={idx} 
             className="quick-reply-btn"
-            onClick={() => onSendMessage(qr.prompt)}
+            onClick={() => onSendMessage(qr.prompt, true)}
           >
             {qr.text}
           </button>
