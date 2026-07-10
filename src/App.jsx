@@ -297,6 +297,43 @@ function App() {
     });
   };
 
+  const handleCreatePersonaGoal = (newGoal) => {
+    setPersonaData(prev => {
+      const updated = { ...prev };
+      const persona = updated[currentPersonaId];
+      
+      const totalInvestedProjected = newGoal.current + (newGoal.sip * newGoal.duration * 0.7);
+      newGoal.progress = Math.min(100, Math.round((totalInvestedProjected / newGoal.target) * 100));
+      
+      persona.goals.push(newGoal);
+
+      if (authType === "actual" && userUid) {
+        saveActualUserProfile(userUid, updated.actual);
+      }
+
+      return updated;
+    });
+  };
+
+  const handleModifyPersonaGoal = (updatedGoal) => {
+    setPersonaData(prev => {
+      const updated = { ...prev };
+      const persona = updated[currentPersonaId];
+      const idx = persona.goals.findIndex(g => g.id === updatedGoal.id);
+      if (idx !== -1) {
+        const totalInvestedProjected = updatedGoal.current + (updatedGoal.sip * updatedGoal.duration * 0.7);
+        updatedGoal.progress = Math.min(100, Math.round((totalInvestedProjected / updatedGoal.target) * 100));
+        persona.goals[idx] = updatedGoal;
+      }
+
+      if (authType === "actual" && userUid) {
+        saveActualUserProfile(userUid, updated.actual);
+      }
+
+      return updated;
+    });
+  };
+
   const handleQuickPrompt = (promptText) => {
     if (activeTab !== "chat") {
       setActiveTab("chat");
@@ -326,6 +363,8 @@ function App() {
           <WealthAdvisory 
             persona={activePersona} 
             onUpdatePersonaGoal={handleUpdatePersonaGoal}
+            onAddPersonaGoal={handleCreatePersonaGoal}
+            onModifyPersonaGoal={handleModifyPersonaGoal}
             onAddChatMessage={addChatMessage}
           />
         );

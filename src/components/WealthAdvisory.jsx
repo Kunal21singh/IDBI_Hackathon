@@ -3,13 +3,28 @@ import { Target, Sliders, RefreshCw, HelpCircle, CheckCircle2, ChevronRight } fr
 import { calculateSIPProjections } from '../utils/aiEngine';
 import confetti from 'canvas-confetti';
 
-const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
+const WealthAdvisory = ({ 
+  persona, 
+  onUpdatePersonaGoal, 
+  onAddPersonaGoal,
+  onModifyPersonaGoal,
+  onAddChatMessage 
+}) => {
   const { goals, riskProfile, riskScore } = persona;
   const [selectedGoal, setSelectedGoal] = useState(goals[0] || null);
 
+  // Form overlay states for Add/Modify
+  const [goalFormOpen, setGoalFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState("add"); // "add" or "modify"
+  const [goalName, setGoalName] = useState("");
+  const [goalTarget, setGoalTarget] = useState(1000000);
+  const [goalCurrent, setGoalCurrent] = useState(50000);
+  const [goalSip, setGoalSip] = useState(10000);
+  const [goalDuration, setGoalDuration] = useState(60);
+
   // Simulator States
   const [sipAmount, setSipAmount] = useState(selectedGoal ? selectedGoal.sip : 15000);
-  const [returnRate, setReturnRate] = useState(12); // Average mutual fund return rate in India
+  const [returnRate, setReturnRate] = useState(12); 
   const [tenureYears, setTenureYears] = useState(selectedGoal ? Math.round(selectedGoal.duration / 12) : 5);
 
   // Risk Quiz States
@@ -29,7 +44,6 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
 
   // Triggered when clicking "Invest Now"
   const handleInvestSimulation = () => {
-    // Fire confetti for celebration
     confetti({
       particleCount: 100,
       spread: 70,
@@ -38,19 +52,79 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
 
     const actionText = `I have successfully authorized a monthly Auto-SIP of ₹${sipAmount.toLocaleString('en-IN')} for my "${selectedGoal ? selectedGoal.name : 'Wealth Growth'}" goal at an expected return of ${returnRate}% for ${tenureYears} years.`;
     
-    // Add user message
     onAddChatMessage(actionText, 'user');
     
-    // Trigger success feedback response from AI
     setTimeout(() => {
       const responseText = `Excellent choice! I have created a recurring Auto-SIP draft linked to your IDBI bank account for ₹${sipAmount.toLocaleString('en-IN')}/month. Over ${tenureYears} years, your projected total wealth accumulation will be ₹${projections.totalAccumulated.toLocaleString('en-IN')}, which puts you on track to achieve your goal. Your risk-aligned SIP has been scheduled! 🎉`;
       onAddChatMessage(responseText, 'ai', 'happy');
       
-      // Update goal state in the app
       if (selectedGoal) {
         onUpdatePersonaGoal(selectedGoal.id, sipAmount, tenureYears * 12);
       }
     }, 1000);
+  };
+
+  // Open Form Handler
+  const handleOpenForm = (mode, goal = null) => {
+    setFormMode(mode);
+    if (mode === "add") {
+      setGoalName("");
+      setGoalTarget(1000000);
+      setGoalCurrent(50000);
+      setGoalSip(10000);
+      setGoalDuration(60);
+    } else if (mode === "modify" && goal) {
+      setGoalName(goal.name);
+      setGoalTarget(goal.target);
+      setGoalCurrent(goal.current);
+      setGoalSip(goal.sip);
+      setGoalDuration(goal.duration);
+    }
+    setGoalFormOpen(true);
+  };
+
+  // Form Submit Handler
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (!goalName) return;
+
+    if (formMode === "add") {
+      const newGoal = {
+        id: `g_${Date.now()}`,
+        name: goalName,
+        target: parseInt(goalTarget),
+        current: parseInt(goalCurrent),
+        sip: parseInt(goalSip),
+        duration: parseInt(goalDuration),
+      };
+      
+      onAddPersonaGoal(newGoal);
+      setSelectedGoal(newGoal);
+      confetti({ particleCount: 100, spread: 60 });
+
+      onAddChatMessage(`I created a new financial goal: "${goalName}" with a target of ₹${parseInt(goalTarget).toLocaleString('en-IN')}.`, 'user');
+      setTimeout(() => {
+        onAddChatMessage(`I have successfully initialized your new goal "${goalName}"! A monthly Auto-SIP of ₹${parseInt(goalSip).toLocaleString('en-IN')} will accumulate approximately ₹${(parseInt(goalSip) * parseInt(goalDuration) * 1.3).toLocaleString('en-IN')} over the planned ${Math.round(goalDuration / 12)} years with compounded interest. Let's begin routing savings.`, 'ai', 'happy');
+      }, 1000);
+
+    } else if (formMode === "modify" && selectedGoal) {
+      const updatedGoal = {
+        id: selectedGoal.id,
+        name: goalName,
+        target: parseInt(goalTarget),
+        current: parseInt(goalCurrent),
+        sip: parseInt(goalSip),
+        duration: parseInt(goalDuration),
+      };
+
+      onModifyPersonaGoal(updatedGoal);
+      setSelectedGoal(updatedGoal);
+
+      setSipAmount(parseInt(goalSip));
+      setTenureYears(Math.round(parseInt(goalDuration) / 12) || 2);
+    }
+
+    setGoalFormOpen(false);
   };
 
   // Risk Quiz questions
@@ -82,24 +156,21 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
   ];
 
   const handleQuizAnswer = (score) => {
-    const nextScores = [...quizScores, score];
-    setQuizScores(nextScores);
-    
+    const updatedScores = [...quizScores, score];
+    setQuizScores(updatedScores);
+
     if (quizStep < quizQuestions.length - 1) {
       setQuizStep(quizStep + 1);
     } else {
-      // Calculate final risk score
-      const totalScore = nextScores.reduce((sum, s) => sum + s, 0);
+      const totalScore = updatedScores.reduce((sum, s) => sum + s, 0);
       let calculatedProfile = "Moderate";
-      if (totalScore < 40) calculatedProfile = "Conservative";
-      else if (totalScore >= 90) calculatedProfile = "Aggressive";
+      if (totalScore >= 95) calculatedProfile = "Aggressive";
+      else if (totalScore <= 55) calculatedProfile = "Conservative";
 
-      // Complete quiz
       setQuizActive(false);
       setQuizStep(0);
       setQuizScores([]);
       
-      // Create user message
       const quizActionText = `I completed the risk profiling assessment and scored a total of ${totalScore} points.`;
       onAddChatMessage(quizActionText, 'user');
       
@@ -160,9 +231,17 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
 
       {/* Target Goals Slider */}
       <div className="glass-panel" style={{ padding: '1rem' }}>
-        <div className="card-title-group" style={{ marginBottom: '0.5rem' }}>
-          <h3>Savings Goals Projections</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h3 style={{ margin: 0 }}>Savings Goals Projections</h3>
+          <button 
+            onClick={() => handleOpenForm("add")} 
+            className="view-toggle-btn active"
+            style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: '12px' }}
+          >
+            + Add Goal
+          </button>
         </div>
+
         <div className="goals-simulator-panel">
           {goals.map(g => (
             <div 
@@ -172,7 +251,29 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
             >
               <div className="goal-card-top">
                 <span className="goal-card-title">{g.name}</span>
-                <span className="goal-card-sip-tag">SIP: ₹{g.sip.toLocaleString('en-IN')}/m</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="goal-card-sip-tag">SIP: ₹{g.sip.toLocaleString('en-IN')}/m</span>
+                  {selectedGoal?.id === g.id && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation(); 
+                        handleOpenForm("modify", g);
+                      }} 
+                      style={{ 
+                        border: '1px solid rgba(0, 229, 255, 0.4)', 
+                        background: 'rgba(0, 229, 255, 0.05)', 
+                        color: 'var(--color-primary)', 
+                        padding: '2px 8px', 
+                        fontSize: '0.62rem', 
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      Modify
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="goal-card-bar-wrap">
                 <div className="goal-card-bar-fill" style={{ width: `${g.progress}%` }}></div>
@@ -218,13 +319,13 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
             {/* Slider 2: Rate of return */}
             <div className="simulator-slider-group">
               <div className="slider-label-row">
-                <span>Expected Annual Returns</span>
+                <span>Expected Returns (p.a.)</span>
                 <span className="val">{returnRate}%</span>
               </div>
               <input 
                 type="range" 
                 min="5" 
-                max="20" 
+                max="25" 
                 step="0.5" 
                 className="custom-range-slider"
                 value={returnRate}
@@ -235,13 +336,13 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
             {/* Slider 3: Duration */}
             <div className="simulator-slider-group">
               <div className="slider-label-row">
-                <span>Tenure Duration</span>
+                <span>Tenure Period</span>
                 <span className="val">{tenureYears} Years</span>
               </div>
               <input 
                 type="range" 
                 min="1" 
-                max="20" 
+                max="30" 
                 step="1" 
                 className="custom-range-slider"
                 value={tenureYears}
@@ -249,59 +350,141 @@ const WealthAdvisory = ({ persona, onUpdatePersonaGoal, onAddChatMessage }) => {
               />
             </div>
 
-            {/* Results Grid Box */}
-            <div className="simulator-result-box">
-              <div className="sim-res-item">
-                <span className="sim-res-lbl">Total Invested</span>
-                <span className="sim-res-val">₹{projections.investedAmount.toLocaleString('en-IN')}</span>
+            {/* Calculations & Result Card */}
+            <div className="simulator-metrics-card">
+              <div className="sim-metric-item">
+                <span className="lbl">Invested Principal</span>
+                <span className="val">₹{projections.investedAmount.toLocaleString('en-IN')}</span>
               </div>
-              <div className="sim-res-item">
-                <span className="sim-res-lbl">Returns Gained</span>
-                <span className="sim-res-val" style={{ color: 'var(--color-success)' }}>
-                  +₹{projections.estimatedReturns.toLocaleString('en-IN')}
+              <div className="sim-metric-item">
+                <span className="lbl">Estimated Gains</span>
+                <span className="val" style={{ color: 'var(--color-success)' }}>
+                  + ₹{projections.estimatedReturns.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="sim-res-item" style={{ gridColumn: 'span 2', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px', marginTop: '4px' }}>
-                <span className="sim-res-lbl">Wealth Accumulated</span>
-                <span className="sim-res-val" style={{ fontSize: '1.1rem', color: 'var(--color-ai)' }}>
-                  ₹{projections.totalAccumulated.toLocaleString('en-IN')}
-                </span>
+              <div className="sim-metric-item total">
+                <span className="lbl">Total Value Accumulation</span>
+                <span className="val">₹{projections.totalAccumulated.toLocaleString('en-IN')}</span>
               </div>
-
-              {/* Confirm update button */}
-              <button className="sim-invest-now-btn" onClick={handleInvestSimulation}>
-                Update SIP & Invest Auto-Debit
-              </button>
             </div>
+
+            {/* Action buttons */}
+            <button className="sim-invest-now-btn" onClick={handleInvestSimulation}>
+              Confirm Monthly SIP Draft
+            </button>
 
           </div>
         </div>
       )}
 
-      {/* Advisory list guidelines */}
-      <div className="glass-panel" style={{ padding: '1rem' }}>
-        <div className="card-title-group" style={{ marginBottom: '0.25rem' }}>
-          <h3>Smart Portfolio Recommendations</h3>
-        </div>
-        <span className="card-subtitle-desc" style={{ display: 'block', marginTop: '-4px' }}>
-          Custom actionable guidance generated from your account profile
-        </span>
-        <div className="advisory-checklist-section">
-          {persona.advisoryTips.map((tip, idx) => (
-            <div 
-              key={idx} 
-              className="advisory-tip-check-item"
-              onClick={() => onQuickPrompt(`tip_${idx}`)}
-            >
-              <div className="tip-check-icon-box">
-                <CheckCircle2 size={16} />
+      {/* Goal Add / Modify Overlay Form Dialog */}
+      {goalFormOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
+          padding: '1rem'
+        }}>
+          <div className="glass-panel-glow" style={{
+            width: '100%', maxWidth: '420px', padding: '1.75rem', borderRadius: '20px',
+            backgroundColor: '#0c1220', border: '1px solid rgba(0, 229, 255, 0.2)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
+          }}>
+            <h3 style={{ margin: '0 0 1.25rem 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontSize: '1.1rem' }}>
+              <Target size={20} color="var(--color-ai)" />
+              <span>{formMode === 'add' ? 'Add New Savings Goal' : 'Modify Savings Goal'}</span>
+            </h3>
+
+            <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} className="auth-form">
+              <div className="auth-input-group">
+                <label>Goal Name</label>
+                <input 
+                  type="text" 
+                  className="chat-input-text" 
+                  style={{ borderRadius: '8px', padding: '8px 12px' }}
+                  placeholder="e.g. Retirement, Child Higher Ed, SUV" 
+                  value={goalName}
+                  onChange={(e) => setGoalName(e.target.value)}
+                  required 
+                />
               </div>
-              <span className="tip-check-text">{tip}</span>
-              <ChevronRight size={14} style={{ marginLeft: 'auto', flexShrink: 0, opacity: 0.5 }} />
-            </div>
-          ))}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="auth-input-group">
+                  <label>Target Amount (₹)</label>
+                  <input 
+                    type="number" 
+                    className="chat-input-text" 
+                    style={{ borderRadius: '8px', padding: '8px 12px' }}
+                    value={goalTarget}
+                    onChange={(e) => setGoalTarget(e.target.value)}
+                    min="1000"
+                    required 
+                  />
+                </div>
+                <div className="auth-input-group">
+                  <label>Currently Saved (₹)</label>
+                  <input 
+                    type="number" 
+                    className="chat-input-text" 
+                    style={{ borderRadius: '8px', padding: '8px 12px' }}
+                    value={goalCurrent}
+                    onChange={(e) => setGoalCurrent(e.target.value)}
+                    min="0"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="auth-input-group">
+                  <label>Planned SIP (₹/m)</label>
+                  <input 
+                    type="number" 
+                    className="chat-input-text" 
+                    style={{ borderRadius: '8px', padding: '8px 12px' }}
+                    value={goalSip}
+                    onChange={(e) => setGoalSip(e.target.value)}
+                    min="500"
+                    required 
+                  />
+                </div>
+                <div className="auth-input-group">
+                  <label>Duration (Months)</label>
+                  <input 
+                    type="number" 
+                    className="chat-input-text" 
+                    style={{ borderRadius: '8px', padding: '8px 12px' }}
+                    value={goalDuration}
+                    onChange={(e) => setGoalDuration(e.target.value)}
+                    min="1"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '0.75rem' }}>
+                <button 
+                  type="button" 
+                  className="voice-mute-toggle-btn" 
+                  style={{ flex: 1, margin: 0, padding: '10px', height: 'auto', borderRadius: '12px' }}
+                  onClick={() => setGoalFormOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="auth-submit-btn" 
+                  style={{ flex: 1, margin: 0, padding: '10px', height: 'auto', borderRadius: '12px' }}
+                >
+                  {formMode === 'add' ? 'Create Goal' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );
