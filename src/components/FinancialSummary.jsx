@@ -1,6 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, TrendingUp, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, TrendingUp, ShieldAlert, Award } from 'lucide-react';
 
 const FinancialSummary = ({ persona, onQuickPrompt, onOpenSyncModal }) => {
   const { metrics, accounts, riskProfile, riskScore, liabilities = [] } = persona;
@@ -22,6 +22,69 @@ const FinancialSummary = ({ persona, onQuickPrompt, onOpenSyncModal }) => {
   });
 
   const COLORS = ['#4e89ff', '#00e676', '#ffa62f', '#ffc107', '#9b51e0'];
+
+  // Dynamically generate wealth suggestions based on metrics, assets & liabilities
+  const getPersonalizedTips = () => {
+    const tips = [];
+
+    // 1. Cash Drag Tip
+    if (metrics.cashDrag > 0) {
+      tips.push({
+        priority: "High",
+        text: `Move ₹${(metrics.cashDrag * 0.7).toLocaleString('en-IN')} of your idle savings balance into a liquid mutual fund or auto-sweep account to increase returns from 3.5% to 7.1%.`,
+        prompt: `How can I move my cash drag of ₹${metrics.cashDrag} to an auto-sweep account?`
+      });
+    }
+
+    // 2. High Debt Tip
+    if (totalLiabilities > 0) {
+      const highestDebt = [...liabilities].sort((a,b) => b.balance - a.balance)[0];
+      tips.push({
+        priority: "High",
+        text: `Use the Debt Avalanche strategy to clear your high-interest ${highestDebt.name} outstanding dues (interest: ${highestDebt.rate}) before adding new long-term assets.`,
+        prompt: `Show me a debt pay-off strategy to clear my outstanding ${highestDebt.name}.`
+      });
+    }
+
+    // 3. Savings Rate Tip
+    const savingsRate = metrics.monthlyIncome > 0 ? (metrics.monthlySavings / metrics.monthlyIncome) * 100 : 0;
+    if (savingsRate < 25) {
+      tips.push({
+        priority: "Medium",
+        text: `Your current monthly savings rate is ${savingsRate.toFixed(0)}% (Recommended: 30%+). We notice budget leaks in shopping & food categories. Let's optimize recurring outflows.`,
+        prompt: `How can I increase my monthly savings rate from ${savingsRate.toFixed(0)}% to 30%?`
+      });
+    }
+
+    // 4. Goal Config Tip
+    if (persona.goals.length === 0 || (persona.goals.length === 1 && persona.goals[0].target === 5000000 && persona.goals[0].current === 0)) {
+      tips.push({
+        priority: "Medium",
+        text: `Initialize your long-term compound wealth target goals (e.g. Retirement, Emergency Buffer) to generate a personalized SIP roadmap.`,
+        prompt: `I want to set up new financial goals.`
+      });
+    } else {
+      // General tax saving tip
+      tips.push({
+        priority: "Medium",
+        text: `Optimize tax savings under Sec 80C by routing surplus funds into tax-saving ELSS Mutual Funds. This can exempt up to ₹1.5 Lakhs from your taxable income.`,
+        prompt: `Explain how tax saver ELSS mutual funds work.`
+      });
+    }
+
+    // If no specific warnings, add default tips from persona data
+    if (tips.length === 0 && persona.advisoryTips) {
+      persona.advisoryTips.forEach((text, i) => {
+        tips.push({
+          priority: i === 0 ? "High" : "Medium",
+          text,
+          prompt: text
+        });
+      });
+    }
+
+    return tips.slice(0, 3);
+  };
 
   return (
     <div className="panel-content-area" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -155,6 +218,52 @@ const FinancialSummary = ({ persona, onQuickPrompt, onOpenSyncModal }) => {
           </div>
         </div>
       )}
+
+      {/* AI Wealth Advisor Recommendations */}
+      <div className="glass-panel" style={{ padding: '1rem' }}>
+        <div className="card-title-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', padding: '4px', background: 'rgba(0, 229, 255, 0.1)', borderRadius: '6px' }}>
+            <Award size={16} color="var(--color-primary)" />
+          </div>
+          <h3 style={{ margin: 0 }}>AI Advisor Suggestions</h3>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {getPersonalizedTips().map((tip, idx) => (
+            <div 
+              key={idx} 
+              className="glass-panel-glow" 
+              style={{ 
+                padding: '0.85rem', 
+                background: 'rgba(255, 255, 255, 0.01)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                cursor: 'pointer'
+              }}
+              onClick={() => onQuickPrompt(tip.prompt)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ 
+                  fontSize: '0.72rem', 
+                  fontWeight: 700, 
+                  color: tip.priority === 'High' ? 'var(--color-danger)' : 'var(--color-gold)' 
+                }}>
+                  {tip.priority === 'High' ? '🔴 High' : '🟡 Medium'} Priority Advice
+                </span>
+                <span style={{ fontSize: '0.62rem', background: 'rgba(0, 229, 255, 0.1)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '8px', fontWeight: 600 }}>
+                  Ask Advisor
+                </span>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'white', margin: 0, lineHeight: 1.45 }}>
+                {tip.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Asset Allocation Pie Chart */}
       {totalAssets > 0 && (
