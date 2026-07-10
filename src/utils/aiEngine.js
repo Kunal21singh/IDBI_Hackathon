@@ -134,6 +134,17 @@ export const generateAIResponse = async (message, persona, currentContext = {}) 
       const totalLiabilities = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
       const netWorth = totalAssets - totalLiabilities;
       
+      // Inject live mutual fund search results context if query matches fund search keywords
+      let liveFundsContext = "";
+      if (isFundQuery) {
+        const liveFunds = await fetchLiveMutualFunds(message);
+        if (liveFunds && liveFunds.length > 0) {
+          liveFundsContext = "\nLive Mutual Fund Data retrieved dynamically from registry:\n" + liveFunds.map(f => 
+            `- ${f.name} (Category: ${f.category}, Latest NAV: ₹${f.nav.toFixed(2)}${f.return1Yr !== 'N/A' ? `, 1-Yr Return: ${f.return1Yr}` : ''})`
+          ).join("\n") + "\n";
+        }
+      }
+
       const systemPrompt = `You are Maya, IDBI Bank's intelligent wealth advisor bot. Respond to the user's queries in a friendly, conversational tone.
 Active User Profile:
 - Name: ${userName}
@@ -141,8 +152,8 @@ Active User Profile:
 - Net Worth: ₹${netWorth}
 - Risk Appetite: ${persona.riskProfile} (Score: ${persona.riskScore}/100)
 - Current holdings: ${persona.accounts.map(a => `${a.name}: ₹${a.balance}`).join(", ")}
-
-Search the web and recommend top-rated Indian mutual fund schemes (like Nippon India, SBI, HDFC, Parag Parikh, Axis, Tata, etc.) that match the user's inquiry. Do NOT restrict yourself to IDBI funds if the user asks for other options or non-IDBI funds. Be helpful and professional. Address them as ${userName}. Limit your answer to 3-4 sentences.`;
+${liveFundsContext}
+You can search the web and recommend mutual funds, top credit cards (for travel, dining, cashback, shopping, premium benefits), investment advice, or debt management strategies matching the user's request. Recommend real-world financial products (such as IDBI Bank credit cards like WINGS, Royale, Aspire, or high-value travel cards from SBI, HDFC, Axis, etc.). Do not restrict yourself to IDBI if they ask for other choices. Perform a free, intelligent analysis and comparison using the context. Be helpful and professional. Address them as ${userName}. Limit your answer to 3-4 sentences in a bulleted/bullet-topic format if listing options.`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -172,170 +183,18 @@ Search the web and recommend top-rated Indian mutual fund schemes (like Nippon I
         return { text: responseText, state, actionTrigger };
       }
     } catch (e) {
-      console.error("Gemini API call failed, falling back to local NLP search", e);
+      console.error("Gemini API call failed", e);
     }
   }
 
-  // 3. Local Search & Rule Engine (Fallback)
+  // 3. Fallback (If no API Key or LLM call fails)
+  const userName = persona.name.split(" ")[0];
+  const totalAssets = persona.accounts.reduce((sum, acc) => sum + acc.balance, 0);
+  const totalLiabilities = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
+  const netWorth = totalAssets - totalLiabilities;
   
-  // Risk profiling triggers
-  if (query.includes("risk") || query.includes("quiz") || query.includes("appetite")) {
-    responseText = `Your current profile is ${persona.riskProfile} (Score: ${persona.riskScore}/100). This is based on your asset allocation. Would you like to retake the Risk Profiling Quiz now to recalculate your optimal portfolio structure?`;
-    state = "thinking";
-    actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
-  }
-  
-  // Tax saving requests
-  else if (
-    query.includes("tax") || 
-    query.includes("80c") || 
-    query.includes("nps") || 
-    query.includes("elss") || 
-    query.includes("ellss") || 
-    query.includes("lss") ||
-    query.includes("tax saving") ||
-    query.includes("tax saver")
-  ) {
-    const userName = persona.name.split(" ")[0];
-    const liveFunds = await fetchLiveMutualFunds("elss growth");
-    let fundsText = "• **SBI Long Term Equity Fund** (Direct Growth)\n  - Latest NAV: ₹394.22\n  - Simulated 1-Yr Return: 22.4%\n\n• **Nippon India Tax Saver Fund** (Direct Growth)\n  - Latest NAV: ₹104.50\n  - Simulated 1-Yr Return: 18.5%\n\n• **HDFC ELSS Tax Saver** (Direct Growth)\n  - Latest NAV: ₹1124.70\n  - Simulated 1-Yr Return: 19.8%";
-
-    if (liveFunds && liveFunds.length > 0) {
-      fundsText = liveFunds.map((f) => `• **${f.name}**\n  - Category: ${f.category}\n  - Latest NAV: ₹${f.nav.toFixed(2)}${f.return1Yr !== 'N/A' ? `\n  - Simulated 1-Yr Return: ${f.return1Yr}` : ''}`).join("\n\n");
-    }
-    
-    responseText = `Hi ${userName}, here are some top tax-saving ELSS funds retrieved dynamically:\n\n${fundsText}\n\nELSS funds offer tax savings under Section 80C with the shortest lock-in period (3 years) of all options. Would you like me to set up an Auto-SIP draft for one of these?${apiKeyHint}`;
-    state = "happy";
-  }
-
-  // Spending and budget habits
-  else if (query.includes("spend") || query.includes("budget") || query.includes("expense") || query.includes("buying") || query.includes("dining")) {
-    const diningCategory = persona.spendingCategories ? persona.spendingCategories.find(c => c.name.includes("Food") || c.name.includes("Dining")) : null;
-    const diningAmt = diningCategory ? diningCategory.value : 0;
-    
-    if (persona.id === "rohan") {
-      responseText = `Rohan, my analysis of your behavior shows you spent ₹${diningAmt.toLocaleString('en-IN')} on food deliveries and dining out this month, which is 27% of your net income. If we trim this by just 15% and redirect ₹5,000 to your 'Buy a SUV' SIP, you will reach your target 4 months earlier!`;
-      state = "warning";
-      actionTrigger = { type: "OPEN_TAB", payload: "spending" };
-    } else if (persona.id === "priya") {
-      responseText = `Priya, your household budgeting is very disciplined! Your primary spending is on Rent/Utilities and Child Education. However, you have an inflation leak: ₹4.5 Lakhs in your Savings account is losing value. Let's move ₹3 Lakhs to a liquid fund yielding 7.2%.`;
-      state = "happy";
-      actionTrigger = { type: "OPEN_TAB", payload: "spending" };
-    } else if (persona.id === "vikram") {
-      responseText = `Vikram, your business expenses constitute your largest outflow. Your EMI payments (₹50,000/month) represent 24% of your total expenses. Prepaying your high-interest business loan would immediately yield an effective risk-free return equal to the loan's interest rate.`;
-      state = "warning";
-      actionTrigger = { type: "OPEN_TAB", payload: "spending" };
-    } else {
-      const userName = persona.name.split(" ")[0];
-      const savingsRate = Math.round((persona.metrics.monthlySavings / persona.metrics.monthlyIncome) * 100) || 0;
-      responseText = `${userName}, you currently save ₹${persona.metrics.monthlySavings.toLocaleString('en-IN')} out of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')} income (a savings rate of ${savingsRate}%). I recommend budgeting 30%+ of your income to speed up goal completion. Let's look at your monthly spend graph.`;
-      state = "warning";
-      actionTrigger = { type: "OPEN_TAB", payload: "spending" };
-    }
-  }
-
-  // Investment, savings and SIP guidance
-  else if (
-    query.includes("sip") || 
-    query.includes("invest") || 
-    query.includes("mutual fund") || 
-    query.includes("stocks") || 
-    query.includes("gold") ||
-    query.includes("small cap") ||
-    query.includes("large cap") ||
-    query.includes("recommend")
-  ) {
-    const userName = persona.name.split(" ")[0];
-    const liveFunds = await fetchLiveMutualFunds(query);
-    let fundsText = "• **Nippon India Growth Fund** (Direct Growth)\n  - Latest NAV: ₹3400.12\n  - Simulated 1-Yr Return: 25.4%\n\n• **SBI Bluechip Fund** (Direct Growth)\n  - Latest NAV: ₹84.50\n  - Simulated 1-Yr Return: 14.2%\n\n• **HDFC Index Fund Nifty 50 Plan** (Direct Growth)\n  - Latest NAV: ₹36.23\n  - Simulated 1-Yr Return: 18.5%";
-
-    if (liveFunds && liveFunds.length > 0) {
-      fundsText = liveFunds.map((f) => `• **${f.name}**\n  - Category: ${f.category}\n  - Latest NAV: ₹${f.nav.toFixed(2)}${f.return1Yr !== 'N/A' ? `\n  - Simulated 1-Yr Return: ${f.return1Yr}` : ''}`).join("\n\n");
-    }
-    
-    responseText = `Hi ${userName}, based on your search for investments, here are the top matching funds retrieved dynamically:\n\n${fundsText}\n\nThese selections are tailored to align with your profile. Shall I open the compound growth simulator to model your SIP?${apiKeyHint}`;
-    state = "happy";
-    actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
-  }
-
-  // Savings Goals
-  else if (query.includes("goal") || query.includes("car") || query.includes("education") || query.includes("retirement") || query.includes("trip")) {
-    const goalsList = persona.goals.map(g => `${g.name} (Progress: ${g.progress}%)`).join(", ");
-    responseText = `You currently have the following goals configured: ${goalsList}. You can navigate to the Goal Advisory tab to run simulations or adjust your monthly contributions. Let me know if you'd like me to calculate the SIP required for a new goal!`;
-    state = "happy";
-    actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
-  }
-
-  // Cash drag / Emergency fund
-  else if (query.includes("drag") || query.includes("idle") || query.includes("saving") || query.includes("sweep")) {
-    responseText = `You have ₹${persona.metrics.cashDrag.toLocaleString('en-IN')} classified as cash drag. Keeping this cash in a regular savings account means it gains very little interest. Let me help you move ₹${(persona.metrics.cashDrag * 0.7).toLocaleString('en-IN')} to high-yield sweep accounts or liquid funds. Would you like to proceed?`;
-    state = "warning";
-  }
-
-  // Custom advisory tips clicks
-  else if (query.startsWith("tip_")) {
-    const tipIndex = parseInt(query.split("_")[1]);
-    responseText = persona.advisoryTips[tipIndex] || "That tip is highly recommended for your profile. Let me know if you would like me to help implement it step-by-step!";
-    state = "happy";
-  }
-
-  // CAMS/KRA portfolio sync checks
-  else if (query.includes("sync") || query.includes("cams") || query.includes("kra") || query.includes("imported") || query.includes("synced")) {
-    if (persona.id === "actual") {
-      responseText = `I've analyzed your synced portfolio from CAMS/KRA. You have imported ₹5,63,300 across 3 Mutual Funds and 2 Stocks. Current allocation is 80% Equity and 20% Debt. Since your risk score is 50 (Moderate), we should balance this by routing future SIPs to short-term corporate debt funds to shield capital. Would you like me to set it up?`;
-      state = "happy";
-    } else {
-      responseText = `Portfolio sync is only available for Actual User accounts. For Demo profiles, you can swap layouts using the floating selector at the top!`;
-      state = "warning";
-    }
-  }
-
-  // Debt repayment strategies
-  else if (query.includes("debt") || query.includes("loan") || query.includes("liability") || query.includes("cc dues") || query.includes("credit card")) {
-    const totalDues = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
-    if (totalDues > 0) {
-      responseText = `You currently have ₹${totalDues.toLocaleString('en-IN')} in outstanding liabilities. I recommend utilizing the Debt Avalanche method: focus surplus savings on prepaying the highest interest liability first (e.g. credit card dues at ${persona.liabilities[0].rate}) while maintaining minimum payments on others. This saves you the maximum amount of interest compound. Shall we check your monthly surplus allocation?`;
-      state = "warning";
-    } else {
-      responseText = `Congratulations! You are completely debt-free with zero outstanding liabilities. Let's focus your surplus monthly income of ₹${persona.metrics.monthlySavings.toLocaleString('en-IN')} entirely on high-yield compounding investments!`;
-      state = "happy";
-    }
-  }
-
-  // Net worth and account balance queries
-  else if (query.includes("net worth") || query.includes("balance") || query.includes("amount") || query.includes("portfolio value") || query.includes("holding") || query.includes("asset")) {
-    const userName = persona.name.split(" ")[0];
-    const totalAssets = persona.accounts.reduce((sum, acc) => sum + acc.balance, 0);
-    const totalLiabilities = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
-    const netWorth = totalAssets - totalLiabilities;
-    
-    let breakdown = persona.accounts.map(a => `${a.name.replace(" (IDBI)", "").replace(" Account", "")}: ₹${a.balance.toLocaleString('en-IN')}`).join(", ");
-    
-    responseText = `Hi ${userName}, your current Net Worth is ₹${netWorth.toLocaleString('en-IN')}. This consists of total assets of ₹${totalAssets.toLocaleString('en-IN')}${totalLiabilities > 0 ? ` minus outstanding liabilities of ₹${totalLiabilities.toLocaleString('en-IN')}` : ''}. Your holdings: ${breakdown}.`;
-    
-    if (persona.id === "actual" && totalAssets > 240000) {
-      responseText += ` (Includes ₹5,63,300 linked via CAMS / KRA folio sync).`;
-    }
-    state = "happy";
-  }
-
-  // Fallback greetings checks
-  else if (query.match(/\b(hi|hello|hey|greetings|good morning|good afternoon)\b/)) {
-    const userName = persona.name.split(" ")[0];
-    responseText = `Hello ${userName}! I'm your digital wealth avatar, Maya. How can I help optimize your financial growth today? You can ask me to analyze your spending habits, explain tax-saving options, or model your savings goals.`;
-    state = "happy";
-  }
-
-  // Default fallback conversational responses
-  else {
-    const userName = persona.name.split(" ")[0];
-    const totalAssets = persona.accounts.reduce((sum, acc) => sum + acc.balance, 0);
-    const totalLiabilities = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
-    const netWorth = totalAssets - totalLiabilities;
-    
-    responseText = `${userName}, I understand you're asking about "${message}". Let me analyze your financial profile. Based on your current net worth of ₹${netWorth.toLocaleString('en-IN')} and a monthly income of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')}, we can set up an optimized allocation. Would you like me to show your spending insights or recommend investment options?${apiKeyHint}`;
-    state = "thinking";
-  }
+  responseText = `Hi ${userName}, to enable full, live AI financial analysis and credit card comparisons, please configure your **GEMINI_API_KEY** at the top of the file: \`src/utils/aiEngine.js\`. Once configured, Maya will freely analyze and answer any query using Google Gemini!${apiKeyHint}`;
+  state = "thinking";
 
   return {
     text: responseText,

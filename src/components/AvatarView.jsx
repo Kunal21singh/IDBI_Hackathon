@@ -84,8 +84,37 @@ const AvatarView = ({
       .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '');
 
     const utterance = new SpeechSynthesisUtterance(speechText);
-    if (voiceSelected) {
-      utterance.voice = voiceSelected;
+    
+    // Dynamically resolve voice selection if state is not loaded yet (e.g. on first boot)
+    let activeVoice = voiceSelected;
+    if (!activeVoice) {
+      const voices = synthRef.current.getVoices();
+      const english = voices.filter(v => v.lang.startsWith("en"));
+      const preferredFemaleNames = ["zira", "samantha", "heera", "hazel", "susan", "female", "veena", "google uk english female", "google us english", "karen", "tessa", "moira"];
+      
+      let selected = null;
+      for (const prefName of preferredFemaleNames) {
+        selected = english.find(v => v.name.toLowerCase().includes(prefName));
+        if (selected) break;
+      }
+      if (!selected) {
+        selected = english.find(v => {
+          const name = v.name.toLowerCase();
+          const isMale = name.includes("male") || name.includes("david") || name.includes("mark") || 
+                         name.includes("ravi") || name.includes("rishi") || name.includes("george") || 
+                         name.includes("guy") || name.includes("john") || name.includes("peter") || 
+                         name.includes("default");
+          return !isMale;
+        });
+      }
+      activeVoice = selected || english[0] || voices[0];
+      if (activeVoice) {
+        setVoiceSelected(activeVoice);
+      }
+    }
+
+    if (activeVoice) {
+      utterance.voice = activeVoice;
     }
     
     utterance.rate = 1.05;
