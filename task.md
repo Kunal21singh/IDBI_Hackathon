@@ -1,0 +1,27 @@
+# Project Tasks
+
+- `[x]` Core Setup & Mock Data Configuration
+  - `[x]` Create `src/utils/mockData.js` with Rohan, Priya, Vikram profiles and initial data
+  - `[x]` Create `src/utils/aiEngine.js` for dialogue logic, risk assessment, and recommendation systems
+- `[x]` Design & Layout Foundation
+  - `[x]` Configure `src/styles/index.css` (CSS variables, reset, fonts, scrolls)
+  - `[x]` Create `src/styles/app.css` (main container grid, glassmorphic layout, mobile frame wrappers)
+  - `[x]` Create `src/styles/components.css` (avatar, chat bubble, interactive charts, and planning calculators)
+- `[x]` Interactive Web & Mobile Components
+  - `[x]` Create `src/components/AvatarView.jsx` (animated SVG face, speaking state, TTS & STT hooks)
+  - `[x]` Create `src/components/ChatInterface.jsx` (chat messages log, fast command quick-replies, microphone voice trigger)
+  - `[x]` Create `src/components/FinancialSummary.jsx` (accounts, net worth gauge, modern charts)
+  - `[x]` Create `src/components/SpendingInsights.jsx` (expenditure analysis, behavioral badges, anomaly alerts)
+  - `[x]` Create `src/components/WealthAdvisory.jsx` (SIP calculator, goal builder, risk profiling questionnaire)
+  - `[x]` Create `src/components/PersonaSelector.jsx` (dynamic layout switcher to swap user profiles)
+- `[x]` User Authentication & Onboarding
+  - `[x]` Create `src/components/AuthScreen.jsx` (Sign In / Register glassmorphic portal)
+  - `[x]` Add onboarding selections for custom user configuration
+  - `[x]` Wire auth states into `src/App.jsx` and add a Logout function
+- `[x]` Main Assembly & Routing
+  - `[x]` Update `src/App.jsx` to tie states together (active persona, active menu, chat logs, speech triggers)
+  - `[x]` Update `index.html` with clean document titles, SEO meta tags, and Web Fonts (Outfit / Inter)
+- `[x]` Verification & Launch
+  - `[x]` Run build checks (`npm run build`)
+  - `[x]` Start local dev server and test interface options
+  - `[x]` Write `walkthrough.md` with final features summary and screenshots
