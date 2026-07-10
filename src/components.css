@@ -232,6 +232,7 @@
   border-radius: var(--border-radius-md);
   position: relative;
   word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .chat-bubble-wrapper.ai .chat-bubble {

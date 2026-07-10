@@ -15,38 +15,43 @@ const AvatarView = ({
   const utteranceRef = useRef(null);
   const lastSpokenTextRef = useRef("");
   const [voiceSelected, setVoiceSelected] = useState(null);
+  const [availableVoices, setAvailableVoices] = useState([]);
 
   // Initialize and select a high-quality voice if available
   useEffect(() => {
     const loadVoices = () => {
       if (!synthRef.current) return;
       const voices = synthRef.current.getVoices();
-      const femaleVoice = voices.find(v => {
-        const name = v.name.toLowerCase();
-        const isEnglish = v.lang.startsWith("en");
-        if (!isEnglish) return false;
-        
-        if (name.includes("male") || name.includes("david") || name.includes("mark") || name.includes("george") || name.includes("rishi") || name.includes("ravi")) {
-          return false;
-        }
+      const english = voices.filter(v => v.lang.startsWith("en"));
+      setAvailableVoices(english);
 
-        return (
-          name.includes("zira") || 
-          name.includes("samantha") || 
-          name.includes("hazel") ||
-          name.includes("susan") ||
-          name.includes("veena") ||
-          (name.includes("google") && name.includes("us english")) ||
-          name.includes("female")
-        );
-      });
+      const preferredFemaleNames = ["zira", "samantha", "heera", "hazel", "susan", "female", "veena", "google uk english female", "google us english", "karen", "tessa", "moira"];
+      
+      let selected = null;
+      for (const prefName of preferredFemaleNames) {
+        selected = english.find(v => {
+          const name = v.name.toLowerCase();
+          return name.includes(prefName);
+        });
+        if (selected) break;
+      }
 
-      const fallbackVoice = femaleVoice || voices.find(v => {
-        const name = v.name.toLowerCase();
-        return v.lang.startsWith("en") && !name.includes("david") && !name.includes("mark") && !name.includes("male");
-      }) || voices[0];
+      if (!selected) {
+        selected = english.find(v => {
+          const name = v.name.toLowerCase();
+          const isMale = name.includes("male") || name.includes("david") || name.includes("mark") || 
+                         name.includes("ravi") || name.includes("rishi") || name.includes("george") || 
+                         name.includes("guy") || name.includes("john") || name.includes("peter") || 
+                         name.includes("default");
+          return !isMale;
+        });
+      }
 
-      setVoiceSelected(fallbackVoice);
+      const finalVoice = selected || english[0] || voices[0];
+      if (finalVoice) {
+        console.log("Maya Voice Selected:", finalVoice.name, "(Lang:", finalVoice.lang, ")");
+      }
+      setVoiceSelected(finalVoice);
     };
 
     loadVoices();
@@ -65,6 +70,17 @@ const AvatarView = ({
 
     const speechText = latestResponseText
       .replace(/₹/g, "rupees ")
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/#/g, "")
+      .replace(/_/g, "")
+      .replace(/p\.a\./gi, "per annum")
+      .replace(/%/g, " percent")
+      .replace(/\bSIP\b/gi, "S I P")
+      .replace(/\bEMI\b/gi, "E M I")
+      .replace(/\bELSS\b/gi, "E L S S")
+      .replace(/\bNPS\b/gi, "N P S")
+      .replace(/\bFIRE\b/gi, "F I R E")
       .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '');
 
     const utterance = new SpeechSynthesisUtterance(speechText);
@@ -206,12 +222,50 @@ const AvatarView = ({
       </div>
 
       {/* Avatar Meta descriptions */}
-      <div className="avatar-meta-tag">
+      <div className="avatar-meta-tag" style={{ marginBottom: '2px' }}>
         <Sparkles size={16} color="var(--color-gold)" className="avatar-meta-sparkle" />
         <span className="avatar-meta-name">{avatarName}</span>
       </div>
       
-      <div className="avatar-status-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {/* Voice Selection Dropdown if available */}
+      {availableVoices.length > 0 && (
+        <div className="voice-selector-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', margin: '4px 0', width: '100%', padding: '0 8px' }}>
+          <select 
+            value={voiceSelected ? voiceSelected.name : ""} 
+            onChange={(e) => {
+              const selectedName = e.target.value;
+              const voice = availableVoices.find(v => v.name === selectedName);
+              if (voice) {
+                setVoiceSelected(voice);
+                synthRef.current.cancel();
+                const testUtterance = new SpeechSynthesisUtterance("Voice configured.");
+                testUtterance.voice = voice;
+                synthRef.current.speak(testUtterance);
+              }
+            }}
+            style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.62rem',
+              borderRadius: '6px',
+              padding: '2px 6px',
+              outline: 'none',
+              cursor: 'pointer',
+              maxWidth: '130px',
+              textAlign: 'center'
+            }}
+          >
+            {availableVoices.map((v, i) => (
+              <option key={i} value={v.name} style={{ background: '#0b0e14', color: 'white' }}>
+                {v.name.replace("Microsoft ", "").replace("Desktop", "").replace("Google ", "")}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      
+      <div className="avatar-status-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
         <span className={`avatar-badge-active-indicator ${avatarState === 'listening' ? 'listening' : ''}`}></span>
         <span className="avatar-status-text" style={{ color: meta.color }}>
           {meta.text}

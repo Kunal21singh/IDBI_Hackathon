@@ -69,6 +69,46 @@ function App() {
   const activePersona = personaData[currentPersonaId];
   const activeChat = chatLogs[currentPersonaId];
 
+  const keepListeningUntilRef = useRef(0);
+  const userManuallyStoppedRef = useRef(false);
+  const isListeningRef = useRef(false);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
+
+  // Monitor avatarState to auto-trigger mic for follow-back questions
+  useEffect(() => {
+    if (avatarState === "idle" && latestSpeechText) {
+      keepListeningUntilRef.current = Date.now() + 120000;
+      userManuallyStoppedRef.current = false;
+      
+      setTimeout(() => {
+        if (!isListeningRef.current && recognitionRef.current && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+          try {
+            recognitionRef.current.start();
+          } catch (err) {
+            console.log("Speech auto-start error: ", err);
+          }
+        }
+      }, 1000); // 1-second delay lets speaker audio decay and clear out
+    }
+  }, [avatarState, latestSpeechText]);
+
+  // Force stop speech recognition whenever the avatar enters a speaking or thinking state
+  useEffect(() => {
+    if (avatarState === "speaking" || avatarState === "thinking") {
+      keepListeningUntilRef.current = 0; // Clear the follow-up window
+      if (recognitionRef.current && isListening) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.log("Error force stopping mic during speech:", e);
+        }
+      }
+    }
+  }, [avatarState, isListening]);
+
   // Initialize Global Speech Recognition (STT)
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -87,9 +127,17 @@ function App() {
       rec.onresult = (e) => {
         const transcript = e.results[0][0].transcript;
         if (transcript.trim()) {
-          // Switch to chat tab dynamically on vocal trigger input
+          // Safety guard: if the captured transcript is a subset of the avatar's own response, ignore it!
+          const cleanSpeech = latestSpeechText.toLowerCase().replace(/[^\w\s]/g, "");
+          const cleanTranscript = transcript.toLowerCase().replace(/[^\w\s]/g, "").trim();
+          
+          if (cleanTranscript.length > 0 && cleanSpeech.includes(cleanTranscript) && cleanTranscript.length < 35) {
+            console.log("Discarded feedback echo transcript:", transcript);
+            return; // Ignore echo feedback!
+          }
+
           setActiveTab("chat");
-          handleSendMessage(transcript);
+          handleSendMessage(transcript, true); // Skip tab-switching on STT submit
         }
       };
 
@@ -103,6 +151,20 @@ function App() {
       rec.onend = () => {
         setIsListening(false);
         setAvatarState(prev => prev === 'listening' ? 'idle' : prev);
+
+        // Auto restart speech recognition if within 2-minute follow-up window
+        const now = Date.now();
+        if (now < keepListeningUntilRef.current && !userManuallyStoppedRef.current) {
+          setTimeout(() => {
+            if (recognitionRef.current && !isListeningRef.current && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+              try {
+                recognitionRef.current.start();
+              } catch (err) {
+                console.log("Speech recognition auto-restart error:", err);
+              }
+            }
+          }, 800);
+        }
       };
 
       recognitionRef.current = rec;
@@ -117,13 +179,17 @@ function App() {
     }
 
     if (isListening) {
+      userManuallyStoppedRef.current = true;
+      keepListeningUntilRef.current = 0;
       recognitionRef.current.stop();
     } else {
+      userManuallyStoppedRef.current = false;
+      keepListeningUntilRef.current = Date.now() + 120000;
       try {
         setRecognitionError(null);
         recognitionRef.current.start();
       } catch (err) {
-        console.error(err);
+        console.error("Speech recognition start error: ", err);
       }
     }
   };
@@ -255,11 +321,20 @@ function App() {
 
   // Chat Submission Handler
   const handleSendMessage = (messageText, skipTabSwitch = false) => {
+    // Force stop speech recognition while generating/speaking response
+    if (recognitionRef.current && isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.log("Error stopping recognition on send:", e);
+      }
+    }
+
     addChatMessage(messageText, 'user');
     setAvatarState("thinking");
 
-    setTimeout(() => {
-      const aiResult = generateAIResponse(messageText, activePersona);
+    setTimeout(async () => {
+      const aiResult = await generateAIResponse(messageText, activePersona);
       addChatMessage(aiResult.text, 'ai', aiResult.state);
 
       if (aiResult.actionTrigger && aiResult.actionTrigger.type === "OPEN_TAB" && !skipTabSwitch) {
@@ -345,7 +420,7 @@ function App() {
     if (activeTab !== "chat") {
       setActiveTab("chat");
     }
-    handleSendMessage(promptText);
+    handleSendMessage(promptText, true);
   };
 
   const renderActiveViewport = () => {
