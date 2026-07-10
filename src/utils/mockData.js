@@ -9,7 +9,7 @@ export const PERSONAS = {
     riskProfile: "Aggressive",
     riskScore: 78,
     metrics: {
-      netWorth: 680000,
+      netWorth: 397500, // Calculated: (220k + 310k + 90k + 60k) - (42.5k + 240k) = 680k - 282.5k = 397.5k
       monthlyIncome: 120000,
       monthlyExpenses: 85000,
       monthlySavings: 35000,
@@ -20,6 +20,10 @@ export const PERSONAS = {
       { name: "Mutual Funds (Equity)", balance: 310000, rate: "14.2% YTD" },
       { name: "Cryptocurrency / High Risk", balance: 90000, rate: "24.5% YTD" },
       { name: "Digital Gold", balance: 60000, rate: "9.8% YTD" }
+    ],
+    liabilities: [
+      { name: "HDFC Credit Card Dues", balance: 42500, rate: "42.0% APR", type: "Credit Card" },
+      { name: "Car Loan (IDBI Bank)", balance: 240000, rate: "9.2% p.a.", type: "Loan" }
     ],
     spendingCategories: [
       { name: "Food & Dining", value: 32000, color: "#FF5E7E" },
@@ -68,7 +72,7 @@ export const PERSONAS = {
     riskProfile: "Moderate",
     riskScore: 52,
     metrics: {
-      netWorth: 2450000,
+      netWorth: 1887200, // Calculated: (650k + 800k + 750k + 250k) - (12.8k + 550k home loan) = 2.45m - 562.8k = 1.8872m
       monthlyIncome: 180000,
       monthlyExpenses: 90000,
       monthlySavings: 90000,
@@ -79,6 +83,10 @@ export const PERSONAS = {
       { name: "Fixed Deposit (IDBI)", balance: 800000, rate: "7.1%" },
       { name: "Balanced Mutual Funds", balance: 750000, rate: "11.5% YTD" },
       { name: "Public Provident Fund (PPF)", balance: 250000, rate: "7.1%" }
+    ],
+    liabilities: [
+      { name: "Amex Credit Card Dues", balance: 12800, rate: "40.0% APR", type: "Credit Card" },
+      { name: "Home Loan (SBI)", balance: 550000, rate: "8.55% p.a.", type: "Loan" }
     ],
     spendingCategories: [
       { name: "Rent & Utilities", value: 35000, color: "#4E89FF" },
@@ -127,7 +135,7 @@ export const PERSONAS = {
     riskProfile: "Conservative",
     riskScore: 31,
     metrics: {
-      netWorth: 8900000,
+      netWorth: 8050000, // Calculated: (1.4m + 950k + 3.5m + 2.1m + 950k) - 850k = 8.9m - 850k = 8.05m
       monthlyIncome: 350000,
       monthlyExpenses: 210000,
       monthlySavings: 140000,
@@ -139,6 +147,9 @@ export const PERSONAS = {
       { name: "Fixed Deposits (Tax Saver)", balance: 3500000, rate: "7.25%" },
       { name: "Corporate Debt Bonds", balance: 2100000, rate: "8.9%" },
       { name: "National Pension Scheme", balance: 950000, rate: "9.4% Avg" }
+    ],
+    liabilities: [
+      { name: "Business Expansion Loan", balance: 850000, rate: "10.5% p.a.", type: "Loan" }
     ],
     spendingCategories: [
       { name: "Business Expenses", value: 95000, color: "#FFA62F" },
@@ -188,7 +199,7 @@ export const ACTUAL_USER_TEMPLATE = {
   riskProfile: "Moderate",
   riskScore: 50,
   metrics: {
-    netWorth: 0,
+    netWorth: -158200, // Calculated: 0 Assets - (8.2k + 150k) = -158.2k
     monthlyIncome: 60000,
     monthlyExpenses: 40000,
     monthlySavings: 20000,
@@ -197,6 +208,10 @@ export const ACTUAL_USER_TEMPLATE = {
   accounts: [
     { name: "Savings Account (IDBI)", balance: 0, rate: "3.5%" },
     { name: "Mutual Funds (Equity)", balance: 0, rate: "12.0%" }
+  ],
+  liabilities: [
+    { name: "IDBI Select Credit Card Dues", balance: 8200, rate: "38.0% APR", type: "Credit Card" },
+    { name: "IDBI Personal Loan Outstanding", balance: 150000, rate: "11.25% p.a.", type: "Loan" }
   ],
   spendingCategories: [
     { name: "Rent & Utilities", value: 15000, color: "#4E89FF" },
@@ -219,4 +234,3 @@ export const ACTUAL_USER_TEMPLATE = {
     "Link your savings account to an automated IDBI FD Auto-Sweep to earn extra returns."
   ]
 };
-

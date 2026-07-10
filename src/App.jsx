@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Wallet, BarChart3, TrendingUp, MessageSquare, Phone, Laptop, Smartphone, LogOut } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Wallet, 
+  BarChart3, 
+  TrendingUp, 
+  MessageSquare, 
+  Phone, 
+  Laptop, 
+  Smartphone, 
+  LogOut, 
+  ChevronLeft, 
+  ChevronRight,
+  Menu
+} from 'lucide-react';
 import PersonaSelector from './components/PersonaSelector';
 import AvatarView from './components/AvatarView';
 import ChatInterface from './components/ChatInterface';
@@ -21,7 +33,15 @@ function App() {
   const [userUid, setUserUid] = useState(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
-  // 2. Core Dashboard States
+  // 2. Sidebar Collapsible State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // 3. Global Speech Recognition States
+  const [isListening, setIsListening] = useState(false);
+  const [recognitionError, setRecognitionError] = useState(null);
+  const recognitionRef = useRef(null);
+
+  // 4. Core Dashboard States
   const [currentPersonaId, setCurrentPersonaId] = useState("rohan");
   const [activeTab, setActiveTab] = useState("overview"); // overview, spending, advisory, chat
   const [viewMode, setViewMode] = useState("mobile"); // mobile or desktop
@@ -48,6 +68,65 @@ function App() {
 
   const activePersona = personaData[currentPersonaId];
   const activeChat = chatLogs[currentPersonaId];
+
+  // Initialize Global Speech Recognition (STT)
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-IN'; // Indian English pronunciation
+
+      rec.onstart = () => {
+        setIsListening(true);
+        setAvatarState("listening");
+        setRecognitionError(null);
+      };
+
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        if (transcript.trim()) {
+          // Switch to chat tab dynamically on vocal trigger input
+          setActiveTab("chat");
+          handleSendMessage(transcript);
+        }
+      };
+
+      rec.onerror = (e) => {
+        console.error("Global Speech recognition error: ", e);
+        setRecognitionError("Failed to capture speech. Try typing!");
+        setIsListening(false);
+        setAvatarState("idle");
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+        setAvatarState(prev => prev === 'listening' ? 'idle' : prev);
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, [currentPersonaId]);
+
+  const toggleSpeechListening = () => {
+    if (!recognitionRef.current) {
+      setRecognitionError("Speech-to-text not supported in this browser. Please use Chrome!");
+      alert("Speech-to-text not supported in this browser. Please use Chrome!");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        setRecognitionError(null);
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   // Handler for successful authentication onboarding
   const handleLoginSuccess = (selectedPersonaId, customName, authTypeSelected, loadedProfile, uid) => {
@@ -82,7 +161,6 @@ function App() {
         setPersonaData(prev => {
           const updated = { ...prev };
           updated[selectedPersonaId].name = customName;
-          // Customize greetings for custom registered name
           updated[selectedPersonaId].initialGreeting = `Hey ${customName}! I notice you've got some heavy transaction outflows, and ₹${personaData[selectedPersonaId].metrics.cashDrag.toLocaleString('en-IN')} sitting in your savings account is losing value to inflation. Let's redirect that cash drag into a high-growth SIP! What do you think?`;
           return updated;
         });
@@ -95,10 +173,8 @@ function App() {
           return updated;
         });
         
-        // Seed voice greetings
         setLatestSpeechText(`Welcome ${customName}! Let's optimize your wealth advisory portfolio today!`);
       } else {
-        // Use default mock persona greeting
         setLatestSpeechText(personaData[selectedPersonaId].initialGreeting);
       }
     }
@@ -124,7 +200,6 @@ function App() {
       const actualUser = updated.actual;
       if (!actualUser) return prev;
 
-      // Merge new holdings avoiding duplication
       holdings.forEach(h => {
         const exists = actualUser.accounts.some(acc => acc.name === h.name);
         if (!exists) {
@@ -132,7 +207,6 @@ function App() {
         }
       });
 
-      // Update net worth and configure cash drag
       actualUser.metrics.netWorth += totalValue;
       
       const savingsAccount = actualUser.accounts.find(a => a.name.includes("Savings"));
@@ -140,7 +214,6 @@ function App() {
         actualUser.metrics.cashDrag = savingsAccount.balance - 50000;
       }
 
-      // Sync changes to Firestore / Local Storage database
       if (userUid) {
         saveActualUserProfile(userUid, actualUser);
       }
@@ -148,7 +221,6 @@ function App() {
       return updated;
     });
 
-    // Notify user chat and trigger AI analysis
     setTimeout(() => {
       addChatMessage(`I successfully synced my CAMS folio statement. Estimated value of external schemes is ₹${totalValue.toLocaleString('en-IN')}. Please analyze my allocation.`, 'user');
       
@@ -163,7 +235,6 @@ function App() {
   const addChatMessage = (text, sender = 'ai', forceState = null) => {
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    // Add to chat history log
     setChatLogs(prev => ({
       ...prev,
       [currentPersonaId]: [
@@ -173,7 +244,7 @@ function App() {
     }));
 
     if (sender === 'ai') {
-      setLatestSpeechText(text); // triggers TTS in Avatar component
+      setLatestSpeechText(text); 
       if (forceState) {
         setAvatarState(forceState);
       } else {
@@ -184,35 +255,26 @@ function App() {
 
   // Chat Submission Handler
   const handleSendMessage = (messageText) => {
-    // 1. Add user's message
     addChatMessage(messageText, 'user');
     setAvatarState("thinking");
 
-    // 2. Query AI advisor script engine
     setTimeout(() => {
       const aiResult = generateAIResponse(messageText, activePersona);
-      
-      // 3. Add AI advisor reply
       addChatMessage(aiResult.text, 'ai', aiResult.state);
 
-      // 4. Handle dynamic tab switches if requested
       if (aiResult.actionTrigger && aiResult.actionTrigger.type === "OPEN_TAB") {
         setActiveTab(aiResult.actionTrigger.payload);
       }
     }, 1000);
   };
 
-  // Sync state when switching persona
   const handleSelectPersona = (id) => {
     setCurrentPersonaId(id);
     setAvatarState("idle");
     setLatestSpeechText("");
-    
-    // Switch to overview when swapping persona
     setActiveTab("overview");
   };
 
-  // Dynamic Goal updates
   const handleUpdatePersonaGoal = (goalId, newSip, newDuration) => {
     setPersonaData(prev => {
       const updated = { ...prev };
@@ -223,12 +285,10 @@ function App() {
         goal.sip = newSip;
         goal.duration = newDuration;
         
-        // Dynamic progress calculation based on updated SIP values
         const totalInvestedProjected = goal.current + (newSip * newDuration * 0.7);
         goal.progress = Math.min(100, Math.round((totalInvestedProjected / goal.target) * 100));
       }
 
-      // Sync actual user profile updates dynamically with Firestore / Local Storage
       if (authType === "actual" && userUid) {
         saveActualUserProfile(userUid, updated.actual);
       }
@@ -237,7 +297,6 @@ function App() {
     });
   };
 
-  // Helper shortcut prompts (badges and checklist triggers)
   const handleQuickPrompt = (promptText) => {
     if (activeTab !== "chat") {
       setActiveTab("chat");
@@ -245,7 +304,6 @@ function App() {
     handleSendMessage(promptText);
   };
 
-  // Render sub-sections dynamically inside the active panel viewport
   const renderActiveViewport = () => {
     switch (activeTab) {
       case "overview":
@@ -277,8 +335,8 @@ function App() {
             messages={activeChat} 
             onSendMessage={handleSendMessage} 
             persona={activePersona}
-            avatarState={avatarState}
-            setAvatarState={setAvatarState}
+            isListening={isListening}
+            onToggleListening={toggleSpeechListening}
           />
         );
       default:
@@ -286,7 +344,6 @@ function App() {
     }
   };
 
-  // If user is not authenticated, show Login/Signup card
   if (!isLoggedIn) {
     return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
   }
@@ -311,7 +368,6 @@ function App() {
 
         {/* Floating Developer Persona Switcher & Logout Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {/* Renders profile swappers in Demo mode only! */}
           {authType === "demo" && (
             <PersonaSelector 
               currentPersonaId={currentPersonaId} 
@@ -360,16 +416,13 @@ function App() {
         {viewMode === 'mobile' && (
           <div className="mobile-device-sandbox">
             <div className="mobile-phone-frame">
-              {/* Notch decoration */}
               <div className="mobile-phone-notch">
                 <div className="notch-camera"></div>
                 <div className="notch-speaker"></div>
               </div>
               
-              {/* Inside Mobile Screen Content */}
               <div className="mobile-screen-content">
                 
-                {/* Mobile app header */}
                 <div className="mobile-app-header">
                   <span className="mobile-app-logo">
                     <span style={{ color: 'var(--color-primary)' }}>IDBI</span> Wealth
@@ -380,7 +433,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* Simulated Floating Avatar Banner (visible on all tabs except Chat tab to give constant guidance!) */}
                 {activeTab !== 'chat' && (
                   <div 
                     className="glass-panel-glow" 
@@ -416,10 +468,8 @@ function App() {
                   </div>
                 )}
 
-                {/* Sub-tab view viewport content */}
                 {renderActiveViewport()}
 
-                {/* Bottom App Navigation Tabs */}
                 <nav className="app-nav-tabs">
                   <button 
                     className={`nav-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
@@ -451,7 +501,6 @@ function App() {
                   </button>
                 </nav>
 
-                {/* Simulated mobile home indicator bar */}
                 <div className="mobile-device-home-indicator"></div>
               </div>
             </div>
@@ -460,10 +509,10 @@ function App() {
 
         {/* 2. FULL WIDTH DESKTOP PORTAL VIEW MODE */}
         {viewMode === 'desktop' && (
-          <div className="desktop-dashboard-view">
+          <div className={`desktop-dashboard-view ${isSidebarCollapsed ? 'collapsed' : ''}`}>
             
             {/* Sidebar Panel containing the Active Avatar & Tab Controls */}
-            <div className="desktop-sidebar">
+            <div className={`desktop-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
               
               {/* Talking AI Avatar Panel */}
               <AvatarView 
@@ -473,43 +522,109 @@ function App() {
                 setAvatarState={setAvatarState}
                 isMuted={isMuted}
                 setIsMuted={setIsMuted}
+                isListening={isListening}
+                onToggleListening={toggleSpeechListening}
               />
 
-              {/* Sidebar Navigation Card */}
-              <div className="glass-panel" style={{ padding: '1rem' }}>
-                <span className="persona-selector-label" style={{ padding: 0, display: 'block', marginBottom: '0.75rem' }}>Navigation Portal</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {/* Sidebar Navigation Card (Collapsible) */}
+              <div className="glass-panel" style={{ padding: isSidebarCollapsed ? '0.75rem 0.25rem' : '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                
+                <span 
+                  className="persona-selector-label" 
+                  style={{ 
+                    padding: 0, 
+                    display: isSidebarCollapsed ? 'none' : 'block'
+                  }}
+                >
+                  Navigation Portal
+                </span>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: isSidebarCollapsed ? '0.5rem' : 0 }}>
                   <button 
-                    className={`view-toggle-btn ${activeTab === 'overview' ? 'active' : ''}`}
-                    style={{ width: '100%', justifyContent: 'flex-start', borderRadius: '12px' }}
+                    className={`view-toggle-btn nav-portal-btn ${activeTab === 'overview' ? 'active' : ''}`}
+                    style={{ 
+                      width: '100%', 
+                      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+                      borderRadius: '12px',
+                      padding: isSidebarCollapsed ? '8px' : '0.5rem 1rem'
+                    }}
                     onClick={() => setActiveTab('overview')}
+                    title="Financial Overview"
                   >
                     <Wallet size={15} />
-                    <span>Financial Overview</span>
+                    {!isSidebarCollapsed && <span>Financial Overview</span>}
                   </button>
                   <button 
-                    className={`view-toggle-btn ${activeTab === 'spending' ? 'active' : ''}`}
-                    style={{ width: '100%', justifyContent: 'flex-start', borderRadius: '12px' }}
+                    className={`view-toggle-btn nav-portal-btn ${activeTab === 'spending' ? 'active' : ''}`}
+                    style={{ 
+                      width: '100%', 
+                      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+                      borderRadius: '12px',
+                      padding: isSidebarCollapsed ? '8px' : '0.5rem 1rem'
+                    }}
                     onClick={() => setActiveTab('spending')}
+                    title="Spending Insights"
                   >
                     <BarChart3 size={15} />
-                    <span>Behavior & Spending Insights</span>
+                    {!isSidebarCollapsed && <span>Spending Insights</span>}
                   </button>
                   <button 
-                    className={`view-toggle-btn ${activeTab === 'advisory' ? 'active' : ''}`}
-                    style={{ width: '100%', justifyContent: 'flex-start', borderRadius: '12px' }}
+                    className={`view-toggle-btn nav-portal-btn ${activeTab === 'advisory' ? 'active' : ''}`}
+                    style={{ 
+                      width: '100%', 
+                      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+                      borderRadius: '12px',
+                      padding: isSidebarCollapsed ? '8px' : '0.5rem 1rem'
+                    }}
                     onClick={() => setActiveTab('advisory')}
+                    title="Goal Advisory Simulator"
                   >
                     <TrendingUp size={15} />
-                    <span>Goal Advisory Simulator</span>
+                    {!isSidebarCollapsed && <span>Goal Advisory Simulator</span>}
                   </button>
                   <button 
-                    className={`view-toggle-btn ${activeTab === 'chat' ? 'active' : ''}`}
-                    style={{ width: '100%', justifyContent: 'flex-start', borderRadius: '12px' }}
+                    className={`view-toggle-btn nav-portal-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                    style={{ 
+                      width: '100%', 
+                      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+                      borderRadius: '12px',
+                      padding: isSidebarCollapsed ? '8px' : '0.5rem 1rem'
+                    }}
                     onClick={() => setActiveTab('chat')}
+                    title="Interactive Advisor Chat"
                   >
                     <MessageSquare size={15} />
-                    <span>Interactive Advisor Chat</span>
+                    {!isSidebarCollapsed && <span>Interactive Advisor Chat</span>}
+                  </button>
+                </div>
+
+                {/* Collapsible toggle arrow positioned at the bottom of the portal card */}
+                <div style={{ 
+                  borderTop: '1px solid rgba(255,255,255,0.06)', 
+                  paddingTop: '0.5rem', 
+                  marginTop: '0.25rem',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  width: '100%'
+                }}>
+                  <button 
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                    className="sidebar-collapse-btn"
+                    title={isSidebarCollapsed ? "Expand Navigation" : "Collapse Navigation"}
+                    style={{
+                      border: '1px solid var(--border-color)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'var(--text-secondary)',
+                      borderRadius: '50%',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                   </button>
                 </div>
               </div>
@@ -535,6 +650,8 @@ function App() {
           setAvatarState={setAvatarState}
           isMuted={isMuted}
           setIsMuted={setIsMuted}
+          isListening={isListening}
+          onToggleListening={toggleSpeechListening}
         />
       </div>
 

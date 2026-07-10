@@ -102,6 +102,18 @@ export const generateAIResponse = (message, persona, currentContext = {}) => {
     }
   }
 
+  // 10. Debt repayment strategies
+  else if (query.includes("debt") || query.includes("loan") || query.includes("liability") || query.includes("cc dues") || query.includes("credit card")) {
+    const totalDues = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
+    if (totalDues > 0) {
+      responseText = `You currently have ₹${totalDues.toLocaleString('en-IN')} in outstanding liabilities. I recommend utilizing the Debt Avalanche method: focus surplus savings on prepaying the highest interest liability first (e.g. credit card dues at ${persona.liabilities[0].rate}) while maintaining minimum payments on others. This saves you the maximum amount of interest compound. Shall we check your monthly surplus allocation?`;
+      state = "warning";
+    } else {
+      responseText = `Congratulations! You are completely debt-free with zero outstanding liabilities. Let's focus your surplus monthly income of ₹${persona.metrics.monthlySavings.toLocaleString('en-IN')} entirely on high-yield compounding investments!`;
+      state = "happy";
+    }
+  }
+
   // Default fallback conversational responses
   else {
     responseText = `I understand you're asking about "${message}". Let me analyze your financial profile. Based on your current net worth of ₹${persona.metrics.netWorth.toLocaleString('en-IN')} and a monthly income of ₹${persona.metrics.monthlyIncome.toLocaleString('en-IN')}, we can set up an optimized allocation. Would you like me to show your spending insights or recommend investment options?`;

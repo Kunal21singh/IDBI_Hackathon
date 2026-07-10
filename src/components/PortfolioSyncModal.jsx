@@ -310,9 +310,11 @@ const PortfolioSyncModal = ({ isOpen, onClose, onSyncSuccess }) => {
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                           maxLength={6}
-                          required 
                         />
                       </div>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--color-warning)', display: 'block', marginTop: '6px' }}>
+                        💡 Demo Consent Key: You can enter any 6-digit code (e.g., 123456) to complete the verification.
+                      </span>
                     </div>
                     <button type="submit" className="auth-submit-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                       <ShieldCheck size={16} />
