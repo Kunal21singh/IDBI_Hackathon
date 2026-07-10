@@ -13,6 +13,7 @@ const AvatarView = ({
 }) => {
   const synthRef = useRef(window.speechSynthesis);
   const utteranceRef = useRef(null);
+  const lastSpokenTextRef = useRef("");
   const [voiceSelected, setVoiceSelected] = useState(null);
 
   // Initialize and select a high-quality voice if available
@@ -20,14 +21,32 @@ const AvatarView = ({
     const loadVoices = () => {
       if (!synthRef.current) return;
       const voices = synthRef.current.getVoices();
-      const preferredVoice = voices.find(v => 
-        (v.name.includes("Google") && v.lang.startsWith("en")) || 
-        (v.name.includes("Natural") && v.lang.startsWith("en")) ||
-        v.name.includes("Zira") || 
-        v.name.includes("Samantha") ||
-        v.lang.startsWith("en")
-      );
-      setVoiceSelected(preferredVoice || voices[0]);
+      const femaleVoice = voices.find(v => {
+        const name = v.name.toLowerCase();
+        const isEnglish = v.lang.startsWith("en");
+        if (!isEnglish) return false;
+        
+        if (name.includes("male") || name.includes("david") || name.includes("mark") || name.includes("george") || name.includes("rishi") || name.includes("ravi")) {
+          return false;
+        }
+
+        return (
+          name.includes("zira") || 
+          name.includes("samantha") || 
+          name.includes("hazel") ||
+          name.includes("susan") ||
+          name.includes("veena") ||
+          (name.includes("google") && name.includes("us english")) ||
+          name.includes("female")
+        );
+      });
+
+      const fallbackVoice = femaleVoice || voices.find(v => {
+        const name = v.name.toLowerCase();
+        return v.lang.startsWith("en") && !name.includes("david") && !name.includes("mark") && !name.includes("male");
+      }) || voices[0];
+
+      setVoiceSelected(fallbackVoice);
     };
 
     loadVoices();
@@ -39,7 +58,9 @@ const AvatarView = ({
   // Text-To-Speech execution when a new message is received
   useEffect(() => {
     if (!latestResponseText || isMuted || !synthRef.current) return;
+    if (latestResponseText === lastSpokenTextRef.current) return;
 
+    lastSpokenTextRef.current = latestResponseText;
     synthRef.current.cancel();
 
     const speechText = latestResponseText
@@ -70,9 +91,7 @@ const AvatarView = ({
     synthRef.current.speak(utterance);
 
     return () => {
-      if (synthRef.current) {
-        synthRef.current.cancel();
-      }
+      // Do NOT cancel speech on cleanup to prevent cutting off active speech on component re-renders
     };
   }, [latestResponseText, isMuted, voiceSelected]);
 
