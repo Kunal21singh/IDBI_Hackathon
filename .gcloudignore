@@ -1,0 +1,19 @@
+# .gcloudignore - Configure what is uploaded to Cloud Build
+# Do NOT inherit from .gitignore to ensure .env is uploaded to the build environment
+
+# Ignore git folder
+.git
+.gitignore
+
+# Ignore local dependencies and builds
+node_modules/
+dist/
+dist-ssr/
+
+# Ignore editor logs and configs
+.vscode/
+.idea/
+*.log
+
+# Ignore this file
+.gcloudignore
