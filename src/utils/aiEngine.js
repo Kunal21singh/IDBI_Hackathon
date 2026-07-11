@@ -93,7 +93,7 @@ export const fetchLiveMutualFunds = async (queryText) => {
 // ============================================================================
 // 🔑 PASTE YOUR GEMINI API KEY HERE TO UNLEASH LIVE GENERATIVE AI RESPONSES:
 // ============================================================================
-const GEMINI_API_KEY = "AQ.Ab8RN6KFNE32g8Rx95HTUpwOO8XXhjAtFE-g7tSdK2Mzww5gyQ"; 
+const GEMINI_API_KEY = ""; 
 
 export const generateAIResponse = async (message, persona, currentContext = {}) => {
   const query = message.toLowerCase();
