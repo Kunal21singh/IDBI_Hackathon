@@ -10,7 +10,8 @@ import {
   LogOut, 
   ChevronLeft, 
   ChevronRight,
-  Menu
+  Menu,
+  CreditCard
 } from 'lucide-react';
 import PersonaSelector from './components/PersonaSelector';
 import AvatarView from './components/AvatarView';
@@ -20,9 +21,11 @@ import SpendingInsights from './components/SpendingInsights';
 import WealthAdvisory from './components/WealthAdvisory';
 import AuthScreen from './components/AuthScreen';
 import PortfolioSyncModal from './components/PortfolioSyncModal';
+import CreditCardSection from './components/CreditCardSection';
 import { PERSONAS } from './utils/mockData';
 import { logOutActualUser, saveActualUserProfile } from './utils/firebase';
 import { generateAIResponse } from './utils/aiEngine';
+import confetti from 'canvas-confetti';
 import './App.css';
 import './components.css';
 
@@ -80,7 +83,7 @@ function App() {
   // Monitor avatarState to auto-trigger mic for follow-back questions
   useEffect(() => {
     if (avatarState === "idle" && latestSpeechText) {
-      keepListeningUntilRef.current = Date.now() + 120000;
+      keepListeningUntilRef.current = Date.now() + 30000;
       userManuallyStoppedRef.current = false;
       
       setTimeout(() => {
@@ -152,7 +155,7 @@ function App() {
         setIsListening(false);
         setAvatarState(prev => prev === 'listening' ? 'idle' : prev);
 
-        // Auto restart speech recognition if within 2-minute follow-up window
+        // Auto restart speech recognition if within 30-second follow-up window
         const now = Date.now();
         if (now < keepListeningUntilRef.current && !userManuallyStoppedRef.current) {
           setTimeout(() => {
@@ -184,7 +187,7 @@ function App() {
       recognitionRef.current.stop();
     } else {
       userManuallyStoppedRef.current = false;
-      keepListeningUntilRef.current = Date.now() + 120000;
+      keepListeningUntilRef.current = Date.now() + 30000;
       try {
         setRecognitionError(null);
         recognitionRef.current.start();
@@ -350,6 +353,157 @@ function App() {
     setActiveTab("overview");
   };
 
+  const handlePayCreditCard = (cardId, paymentAmount, sourceAccountName) => {
+    setPersonaData(prev => {
+      const updated = { ...prev };
+      const persona = { ...updated[currentPersonaId] };
+
+      // 1. Find the credit card
+      persona.creditCards = (persona.creditCards || []).map(card => {
+        if (card.id === cardId) {
+          const updatedCard = { ...card };
+          updatedCard.balance = Math.max(0, updatedCard.balance - paymentAmount);
+          updatedCard.availableLimit = updatedCard.limit - updatedCard.balance;
+          
+          // Add credit transaction to card
+          updatedCard.transactions = [
+            {
+              id: `tx_cc_pay_${Date.now()}`,
+              date: new Date().toISOString().split('T')[0],
+              desc: "Payment Received - Thank You",
+              category: "Payment",
+              amount: paymentAmount,
+              type: "credit"
+            },
+            ...(updatedCard.transactions || [])
+          ];
+
+          return updatedCard;
+        }
+        return card;
+      });
+
+      // 2. Deduct from source account
+      persona.accounts = (persona.accounts || []).map(acc => {
+        if (acc.name === sourceAccountName) {
+          const updatedAcc = { ...acc };
+          updatedAcc.balance = Math.max(0, updatedAcc.balance - paymentAmount);
+          return updatedAcc;
+        }
+        return acc;
+      });
+
+      // 3. Update Liabilities
+      const card = (persona.creditCards || []).find(c => c.id === cardId);
+      if (card) {
+        persona.liabilities = (persona.liabilities || []).map(liab => {
+          // Match liability corresponding to this card (HDFC, Amex, IDBI Select, etc.)
+          const matchesName = liab.name.toLowerCase().includes(card.name.split(" ")[0].toLowerCase());
+          const isCreditCardType = liab.type === "Credit Card" || liab.name.toLowerCase().includes("credit card");
+          if (isCreditCardType && matchesName) {
+            const updatedLiab = { ...liab };
+            updatedLiab.balance = Math.max(0, updatedLiab.balance - paymentAmount);
+            return updatedLiab;
+          }
+          return liab;
+        }).filter(liab => liab.balance > 0); // keep non-zero credit card liabilities or other loans
+      }
+
+      // 4. Add transaction to recentTransactions log
+      const cardName = card ? card.name : "Credit Card";
+      persona.recentTransactions = [
+        {
+          id: Date.now(),
+          date: new Date().toISOString().split('T')[0],
+          desc: `CC Bill Payment - ${cardName}`,
+          category: "EMIs & Loan Repayments",
+          amount: -paymentAmount,
+          type: "debit"
+        },
+        ...(persona.recentTransactions || [])
+      ];
+
+      // 5. Recalculate Net Worth
+      const totalAssets = persona.accounts.reduce((sum, acc) => sum + acc.balance, 0);
+      const totalLiabilities = persona.liabilities.reduce((sum, l) => sum + l.balance, 0);
+      persona.metrics.netWorth = totalAssets - totalLiabilities;
+      
+      const savingsAccount = persona.accounts.find(a => a.name.includes("Savings"));
+      if (savingsAccount) {
+        const threshold = persona.id === 'priya' ? 200000 : 50000;
+        persona.metrics.cashDrag = Math.max(0, savingsAccount.balance - threshold);
+      }
+
+      updated[currentPersonaId] = persona;
+
+      // 6. Save actual profile
+      if (authType === "actual" && userUid) {
+        saveActualUserProfile(userUid, updated.actual);
+      }
+
+      // 7. Celebrate payment!
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+
+      // 8. Add congratulations chat message from AI
+      setTimeout(() => {
+        addChatMessage(`Excellent job clearing your high-interest ${cardName} dues! Paying off ₹${paymentAmount.toLocaleString('en-IN')} saves you from high interest charges and boosts your overall credit health. Let's keep those balances at zero!`, 'ai', 'happy');
+      }, 1000);
+
+      return updated;
+    });
+  };
+
+  const handleLinkCreditCard = (newCard) => {
+    setPersonaData(prev => {
+      const updated = { ...prev };
+      const persona = { ...updated[currentPersonaId] };
+
+      persona.creditCards = [...(persona.creditCards || []), newCard];
+
+      // If new card has outstanding balance, add to liabilities
+      if (newCard.balance > 0) {
+        persona.liabilities = [
+          ...(persona.liabilities || []),
+          {
+            name: `${newCard.name} Dues`,
+            balance: newCard.balance,
+            rate: newCard.rate,
+            type: "Credit Card"
+          }
+        ];
+
+        // Update net worth
+        const totalAssets = persona.accounts.reduce((sum, acc) => sum + acc.balance, 0);
+        const totalLiabilities = persona.liabilities.reduce((sum, l) => sum + l.balance, 0);
+        persona.metrics.netWorth = totalAssets - totalLiabilities;
+      }
+
+      updated[currentPersonaId] = persona;
+
+      if (authType === "actual" && userUid) {
+        saveActualUserProfile(userUid, updated.actual);
+      }
+
+      // Celebrate linking!
+      confetti({
+        particleCount: 80,
+        spread: 50,
+        origin: { y: 0.6 }
+      });
+
+      // AI Advisor greets linking card
+      setTimeout(() => {
+        addChatMessage(`Awesome! I've linked your new ${newCard.name} (${newCard.cardNumber}) to your IDBI Smart Wealth dashboard. I will now track its dues, APR rate (${newCard.rate}), and utilization. Keep an eye on the Credit Cards section to monitor limits!`, 'ai', 'happy');
+      }, 1000);
+
+      return updated;
+    });
+  };
+
   const handleUpdatePersonaGoal = (goalId, newSip, newDuration) => {
     setPersonaData(prev => {
       const updated = { ...prev };
@@ -438,6 +592,14 @@ function App() {
           <SpendingInsights 
             persona={activePersona} 
             onQuickPrompt={handleQuickPrompt} 
+          />
+        );
+      case "cards":
+        return (
+          <CreditCardSection 
+            persona={activePersona}
+            onPayCreditCard={handlePayCreditCard}
+            onLinkCreditCard={handleLinkCreditCard}
           />
         );
       case "advisory":
@@ -607,6 +769,13 @@ function App() {
                     <span>Spend</span>
                   </button>
                   <button 
+                    className={`nav-tab-btn ${activeTab === 'cards' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('cards')}
+                  >
+                    <CreditCard size={16} />
+                    <span>Cards</span>
+                  </button>
+                  <button 
                     className={`nav-tab-btn ${activeTab === 'advisory' ? 'active' : ''}`}
                     onClick={() => setActiveTab('advisory')}
                   >
@@ -688,6 +857,20 @@ function App() {
                   >
                     <BarChart3 size={15} />
                     {!isSidebarCollapsed && <span>Spending Insights</span>}
+                  </button>
+                  <button 
+                    className={`view-toggle-btn nav-portal-btn ${activeTab === 'cards' ? 'active' : ''}`}
+                    style={{ 
+                      width: '100%', 
+                      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+                      borderRadius: '12px',
+                      padding: isSidebarCollapsed ? '8px' : '0.5rem 1rem'
+                    }}
+                    onClick={() => setActiveTab('cards')}
+                    title="Credit Cards"
+                  >
+                    <CreditCard size={15} />
+                    {!isSidebarCollapsed && <span>Credit Cards</span>}
                   </button>
                   <button 
                     className={`view-toggle-btn nav-portal-btn ${activeTab === 'advisory' ? 'active' : ''}`}

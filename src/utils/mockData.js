@@ -25,6 +25,46 @@ export const PERSONAS = {
       { name: "HDFC Credit Card Dues", balance: 42500, rate: "42.0% APR", type: "Credit Card" },
       { name: "Car Loan (IDBI Bank)", balance: 240000, rate: "9.2% p.a.", type: "Loan" }
     ],
+    creditCards: [
+      {
+        id: "cc_rohan_hdfc",
+        name: "HDFC Millennia",
+        cardNumber: "**** 8821",
+        cardType: "Mastercard",
+        cardColor: "linear-gradient(135deg, #0d47a1 0%, #1976d2 100%)",
+        limit: 150000,
+        availableLimit: 107500,
+        balance: 42500,
+        dueDate: "2026-07-25",
+        minDue: 2125,
+        rate: "42.0% APR",
+        status: "active",
+        onlineTx: true,
+        intlTx: false,
+        transactions: [
+          { id: "tx_cc_r1", date: "2026-07-09", desc: "Zomato Premium", category: "Food & Dining", amount: -1450, type: "debit" },
+          { id: "tx_cc_r2", date: "2026-07-08", desc: "Amazon Pay - Electronics", category: "Shopping (Impulsive)", amount: -12999, type: "debit" },
+          { id: "tx_cc_r3", date: "2026-07-02", desc: "Netflix Subscription", category: "Entertainment", amount: -649, type: "debit" }
+        ]
+      },
+      {
+        id: "cc_rohan_idbi",
+        name: "IDBI Aspire",
+        cardNumber: "**** 1192",
+        cardType: "Visa",
+        cardColor: "linear-gradient(135deg, #00796b 0%, #009688 100%)",
+        limit: 75000,
+        availableLimit: 75000,
+        balance: 0,
+        dueDate: "2026-07-18",
+        minDue: 0,
+        rate: "36.0% APR",
+        status: "active",
+        onlineTx: true,
+        intlTx: false,
+        transactions: []
+      }
+    ],
     spendingCategories: [
       { name: "Food & Dining", value: 32000, color: "#FF5E7E" },
       { name: "Rent & Utilities", value: 25000, color: "#4E89FF" },
@@ -87,6 +127,47 @@ export const PERSONAS = {
     liabilities: [
       { name: "Amex Credit Card Dues", balance: 12800, rate: "40.0% APR", type: "Credit Card" },
       { name: "Home Loan (SBI)", balance: 550000, rate: "8.55% p.a.", type: "Loan" }
+    ],
+    creditCards: [
+      {
+        id: "cc_priya_amex",
+        name: "Amex Membership Rewards",
+        cardNumber: "**** 9005",
+        cardType: "Amex",
+        cardColor: "linear-gradient(135deg, #b58900 0%, #cb4b16 100%)",
+        limit: 300000,
+        availableLimit: 287200,
+        balance: 12800,
+        dueDate: "2026-07-22",
+        minDue: 1000,
+        rate: "40.0% APR",
+        status: "active",
+        onlineTx: true,
+        intlTx: true,
+        transactions: [
+          { id: "tx_cc_p1", date: "2026-07-10", desc: "Euro Kids Pre-School", category: "Child Education", amount: -15000, type: "debit" },
+          { id: "tx_cc_p2", date: "2026-07-02", desc: "BigBasket Groceries", category: "Food & Groceries", amount: -6500, type: "debit" }
+        ]
+      },
+      {
+        id: "cc_priya_idbi",
+        name: "IDBI Royale",
+        cardNumber: "**** 3341",
+        cardType: "Visa",
+        cardColor: "linear-gradient(135deg, #512da8 0%, #673ab7 100%)",
+        limit: 200000,
+        availableLimit: 195500,
+        balance: 4500,
+        dueDate: "2026-07-15",
+        minDue: 500,
+        rate: "38.0% APR",
+        status: "active",
+        onlineTx: true,
+        intlTx: false,
+        transactions: [
+          { id: "tx_cc_p3", date: "2026-07-01", desc: "HDFC Life Insurance Prem.", category: "Insurance Premiums", amount: -7000, type: "debit" }
+        ]
+      }
     ],
     spendingCategories: [
       { name: "Rent & Utilities", value: 35000, color: "#4E89FF" },
@@ -151,6 +232,25 @@ export const PERSONAS = {
     liabilities: [
       { name: "Business Expansion Loan", balance: 850000, rate: "10.5% p.a.", type: "Loan" }
     ],
+    creditCards: [
+      {
+        id: "cc_vikram_idbi",
+        name: "IDBI WINGS Premium",
+        cardNumber: "**** 7700",
+        cardType: "Visa",
+        cardColor: "linear-gradient(135deg, #111111 0%, #333333 100%)",
+        limit: 500000,
+        availableLimit: 500000,
+        balance: 0,
+        dueDate: "2026-07-28",
+        minDue: 0,
+        rate: "32.0% APR",
+        status: "active",
+        onlineTx: true,
+        intlTx: true,
+        transactions: []
+      }
+    ],
     spendingCategories: [
       { name: "Business Expenses", value: 95000, color: "#FFA62F" },
       { name: "Family Expenses", value: 65000, color: "#4E89FF" },
@@ -212,6 +312,28 @@ export const ACTUAL_USER_TEMPLATE = {
   liabilities: [
     { name: "IDBI Select Credit Card Dues", balance: 8200, rate: "38.0% APR", type: "Credit Card" },
     { name: "IDBI Personal Loan Outstanding", balance: 150000, rate: "11.25% p.a.", type: "Loan" }
+  ],
+  creditCards: [
+    {
+      id: "cc_actual_idbi",
+      name: "IDBI Select Credit Card",
+      cardNumber: "**** 5567",
+      cardType: "Visa",
+      cardColor: "linear-gradient(135deg, #311b92 0%, #4527a0 100%)",
+      limit: 150000,
+      availableLimit: 141800,
+      balance: 8200,
+      dueDate: "2026-07-24",
+      minDue: 500,
+      rate: "38.0% APR",
+      status: "active",
+      onlineTx: true,
+      intlTx: false,
+      transactions: [
+        { id: "tx_cc_a1", date: "2026-07-05", desc: "Uber India", category: "Transport", amount: -1250, type: "debit" },
+        { id: "tx_cc_a2", date: "2026-07-04", desc: "Starbucks Coffee", category: "Food & Dining", amount: -450, type: "debit" }
+      ]
+    }
   ],
   spendingCategories: [
     { name: "Rent & Utilities", value: 15000, color: "#4E89FF" },

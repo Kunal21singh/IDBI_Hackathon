@@ -100,8 +100,17 @@ export const generateAIResponse = async (message, persona, currentContext = {}) 
   let responseText = "";
   let state = "speaking";
   let actionTrigger = null;
+  let apiErrorDetails = "";
 
-  const apiKey = GEMINI_API_KEY || localStorage.getItem("GEMINI_API_KEY") || "";
+  const envApiKey = (typeof import.meta !== 'undefined' && import.meta.env) 
+    ? (import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY) 
+    : "";
+  
+  const processApiKey = (typeof process !== 'undefined' && process.env)
+    ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY)
+    : "";
+
+  const apiKey = GEMINI_API_KEY || envApiKey || processApiKey || localStorage.getItem("GEMINI_API_KEY") || (typeof window !== 'undefined' && window.GEMINI_API_KEY) || "";
   const apiKeyHint = !apiKey ? "\n\n💡 *Tip: Configure GEMINI_API_KEY inside src/utils/aiEngine.js to enable live generative AI responses!*" : "";
 
   // 1. Check if the message is a mutual fund inquiry. If so, fetch live financial data.
@@ -145,6 +154,8 @@ export const generateAIResponse = async (message, persona, currentContext = {}) 
         }
       }
 
+      const cardsContext = persona.creditCards ? `Current credit cards linked: ${persona.creditCards.map(c => `${c.name} (${c.cardNumber}) Outstanding Dues: ₹${c.balance}, Limit: ₹${c.limit}, APR: ${c.rate}`).join(", ")}` : "None";
+
       const systemPrompt = `You are Maya, IDBI Bank's intelligent wealth advisor bot. Respond to the user's queries in a friendly, conversational tone.
 Active User Profile:
 - Name: ${userName}
@@ -152,38 +163,81 @@ Active User Profile:
 - Net Worth: ₹${netWorth}
 - Risk Appetite: ${persona.riskProfile} (Score: ${persona.riskScore}/100)
 - Current holdings: ${persona.accounts.map(a => `${a.name}: ₹${a.balance}`).join(", ")}
+- ${cardsContext}
 ${liveFundsContext}
 You can search the web and recommend mutual funds, top credit cards (for travel, dining, cashback, shopping, premium benefits), investment advice, or debt management strategies matching the user's request. Recommend real-world financial products (such as IDBI Bank credit cards like WINGS, Royale, Aspire, or high-value travel cards from SBI, HDFC, Axis, etc.). Do not restrict yourself to IDBI if they ask for other choices. Perform a free, intelligent analysis and comparison using the context. Be helpful and professional. Address them as ${userName}. Limit your answer to 3-4 sentences in a bulleted/bullet-topic format if listing options.`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              { role: "user", parts: [{ text: `${systemPrompt}\n\nUser Question: ${message}` }] }
-            ]
-          })
-        }
-      );
+      const modelsToTry = [
+        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-flash-latest"
+      ];
+      
+      let responseData = null;
+      let modelUsed = "";
 
-      const data = await response.json();
-      if (data.candidates && data.candidates[0].content.parts[0].text) {
-        responseText = data.candidates[0].content.parts[0].text.trim();
+      for (const model of modelsToTry) {
+        try {
+          const apiVersion = model.includes("1.0") ? "v1" : "v1beta";
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [
+                  { role: "user", parts: [{ text: `${systemPrompt}\n\nUser Question: ${message}` }] }
+                ]
+              })
+            }
+          );
+          
+          const data = await response.json();
+          if (data.candidates && data.candidates[0].content.parts[0].text) {
+            responseData = data;
+            modelUsed = model;
+            break; // Found working model!
+          } else if (data.error) {
+            console.warn(`Model ${model} failed:`, data.error.message);
+            apiErrorDetails = `(${model}: ${data.error.message})`;
+          }
+        } catch (err) {
+          console.warn(`Request for ${model} threw error:`, err.message);
+          apiErrorDetails = `(${model} request failed: ${err.message})`;
+        }
+      }
+
+      if (responseData && responseData.candidates && responseData.candidates[0].content.parts[0].text) {
+        responseText = responseData.candidates[0].content.parts[0].text.trim();
         state = "happy";
         
         // Simple heuristic action triggers based on AI text
-        if (responseText.toLowerCase().includes("spending") || responseText.toLowerCase().includes("insights")) {
+        if (query.includes("card") || query.includes("cc") || query.includes("due") || query.includes("pay bill") || query.includes("outstanding") || responseText.toLowerCase().includes("credit card") || responseText.toLowerCase().includes("credit cards")) {
+          actionTrigger = { type: "OPEN_TAB", payload: "cards" };
+        } else if (responseText.toLowerCase().includes("spending") || responseText.toLowerCase().includes("insights")) {
           actionTrigger = { type: "OPEN_TAB", payload: "spending" };
         } else if (responseText.toLowerCase().includes("simulator") || responseText.toLowerCase().includes("calculator") || responseText.toLowerCase().includes("advisory")) {
           actionTrigger = { type: "OPEN_TAB", payload: "advisory" };
         }
         
         return { text: responseText, state, actionTrigger };
+      } else {
+        // Query ListModels to see what's allowed on the key
+        try {
+          const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+          const listData = await listResponse.json();
+          if (listData.models && listData.models.length > 0) {
+            const availableNames = listData.models.map(m => m.name.replace("models/", "")).join(", ");
+            apiErrorDetails += ` | Supported models for your API key: [${availableNames}]`;
+          }
+        } catch (listErr) {
+          console.error("Failed to query models list:", listErr);
+        }
       }
     } catch (e) {
       console.error("Gemini API call failed", e);
+      apiErrorDetails = `(Connection Error: ${e.message})`;
     }
   }
 
@@ -193,8 +247,15 @@ You can search the web and recommend mutual funds, top credit cards (for travel,
   const totalLiabilities = persona.liabilities ? persona.liabilities.reduce((sum, l) => sum + l.balance, 0) : 0;
   const netWorth = totalAssets - totalLiabilities;
   
-  responseText = `Hi ${userName}, to enable full, live AI financial analysis and credit card comparisons, please configure your **GEMINI_API_KEY** at the top of the file: \`src/utils/aiEngine.js\`. Once configured, Maya will freely analyze and answer any query using Google Gemini!${apiKeyHint}`;
-  state = "thinking";
+  if (query.includes("card") || query.includes("cc") || query.includes("due") || query.includes("pay bill") || query.includes("outstanding")) {
+    actionTrigger = { type: "OPEN_TAB", payload: "cards" };
+    responseText = `Hi ${userName}, I've opened the **Credit Cards** section for you where you can check all your linked cards, see outstanding dues, track transactions, or pay bills in real time. Let me know if you would like me to analyze card APR rates or help with repayment strategies!`;
+    state = "happy";
+  } else {
+    const errorMsg = apiErrorDetails ? `\n\n⚠️ **Google Gemini API Error Details**: ${apiErrorDetails}` : "";
+    responseText = `Hi ${userName}, to enable full, live AI financial analysis and credit card comparisons, please configure your **GEMINI_API_KEY** at the top of the file: \`src/utils/aiEngine.js\` (or via your env parameters). Once configured, Maya will freely analyze and answer any query using Google Gemini!${apiKeyHint}${errorMsg}`;
+    state = "thinking";
+  }
 
   return {
     text: responseText,
